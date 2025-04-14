@@ -1,0 +1,76 @@
+{
+  "project_info": {
+    "project_number": "97108639991",
+    "project_id": "job-interview-46c64",
+    "storage_bucket": "job-interview-46c64.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:97108639991:android:7657be9535cc4d6b2f53f2",
+        "android_client_info": {
+          "package_name": "com.example.my_web_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "97108639991-or1342sfq5sjh72cccvrf6224oosrpe2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDFnaSCwgM3D_lUOLdrxu09v2B5lTqBhMQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "97108639991-or1342sfq5sjh72cccvrf6224oosrpe2.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:97108639991:android:12d544f76942c2d02f53f2",
+        "android_client_info": {
+          "package_name": "com.example.myapplication"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "97108639991-lsfa15i040a7nohujmtfe9mbnssdaqc5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.myapplication",
+            "certificate_hash": "a21b58cc674b43353b0726acba1a8f2a6b600e1b"
+          }
+        },
+        {
+          "client_id": "97108639991-or1342sfq5sjh72cccvrf6224oosrpe2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDFnaSCwgM3D_lUOLdrxu09v2B5lTqBhMQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "97108639991-or1342sfq5sjh72cccvrf6224oosrpe2.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

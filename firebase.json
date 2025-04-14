@@ -1,0 +1,39 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "job-interview-46c64",
+          "appId": "1:97108639991:android:7657be9535cc4d6b2f53f2",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "job-interview-46c64",
+          "configurations": {
+            "android": "1:97108639991:android:7657be9535cc4d6b2f53f2",
+            "ios": "1:97108639991:ios:80416ba448f8df1e2f53f2",
+            "macos": "1:97108639991:ios:80416ba448f8df1e2f53f2",
+            "web": "1:97108639991:web:b33a18a8d68c15572f53f2",
+            "windows": "1:97108639991:web:4c62879d7434bc2e2f53f2"
+          }
+        }
+      }
+    }
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}

@@ -1,0 +1,331 @@
+import 'dart:html' as html;
+import 'package:flutter/material.dart';
+import '../models/resume_model.dart';
+import '../services/resume_service.dart';
+import '../services/firebase_service.dart';
+
+class ResumeController extends ChangeNotifier {
+  // 의존성
+  final ResumeService _resumeService = ResumeService();
+  final FirebaseService _firebaseService = FirebaseService();
+
+  // 모델
+  final ResumeModel _model = ResumeModel();
+  final GlobalKey<FormState> formKey = GlobalKey<FormState>();
+
+  // 상태 변수
+  bool _isLoading = false;
+  String? _error;
+  bool _isLoadingFromServer = false;
+  bool _resumeExistsOnServer = false;
+
+  // Getters
+  String get field => _model.field;
+  String get position => _model.position;
+  String get experience => _model.experience;
+  List<String> get interviewTypes => _model.interviewTypes;
+  List<Certificate> get certificates => _model.certificates;
+  Education get education => _model.education;
+  SelfIntroduction get selfIntroduction => _model.selfIntroduction;
+  bool get hasPersonalityInterview => _model.hasPersonalityInterview;
+  bool get isPersonalityInterviewSelected =>
+      _model.interviewTypes.contains('인성면접');
+  bool get isLoading => _isLoading;
+  String? get error => _error;
+  bool get isLoadingFromServer => _isLoadingFromServer;
+  bool get resumeExistsOnServer => _resumeExistsOnServer;
+
+  // 자기소개서 필드 getter
+  String? get selfIntroductionMotivation => _model.selfIntroduction.motivation;
+  String? get selfIntroductionStrength => _model.selfIntroduction.strength;
+
+  // 필드 데이터 목록
+  final List<String> fields = [
+    '웹 개발',
+    '모바일 앱 개발',
+    '게임 개발',
+    '클라우드/인프라',
+    '시스템 소프트웨어',
+    '데이터 엔지니어링',
+    'AI/ML',
+    '보안',
+    'DevOps',
+    '임베디드 시스템',
+    '블록체인',
+    'AR/VR 개발',
+    '기타'
+  ];
+
+  // 직무 목록
+  final List<String> positions = [
+    '프론트엔드 개발자',
+    '백엔드 개발자',
+    '풀스택 개발자',
+    '모바일 앱 개발자',
+    '게임 개발자',
+    '시스템 프로그래머',
+    'DevOps/SRE 엔지니어',
+    '클라우드 엔지니어',
+    '데이터 엔지니어/사이언티스트',
+    'AI/ML 엔지니어',
+    '보안 엔지니어',
+    '임베디드 개발자',
+    '블록체인 개발자',
+    'AR/VR 개발자',
+    'QA/테스트 엔지니어',
+    '기타'
+  ];
+
+  // 경력 목록
+  final List<String> experiences = ['신입', '1~3년', '4~7년', '8~10년', '10년 이상'];
+
+  // 면접 유형 목록
+  final List<String> interviewTypeOptions = ['직무면접', '인성면접'];
+
+  // 학위 목록
+  final List<String> degrees = ['학사', '석사', '박사'];
+
+  // 학점 만점 목록
+  final List<String> totalGpas = ['4.0', '4.3', '4.5'];
+
+  // 초기화
+  ResumeController() {
+    _initializeResume();
+  }
+
+  // 이력서 초기화 - 서버에서 데이터 조회 시도
+  Future<void> _initializeResume() async {
+    String? userId = _firebaseService.currentUser?.uid;
+
+    if (userId != null) {
+      await loadResumeFromServer(userId);
+    }
+  }
+
+  // 서버에서 이력서 불러오기
+  Future<void> loadResumeFromServer(String userId) async {
+    try {
+      _isLoadingFromServer = true;
+      notifyListeners();
+
+      final resumeData = await _resumeService.getResume(userId);
+
+      if (resumeData != null) {
+        _model.field = resumeData.field;
+        _model.position = resumeData.position;
+        _model.experience = resumeData.experience;
+        _model.interviewTypes = resumeData.interviewTypes;
+        _model.certificates = resumeData.certificates;
+        _model.education = resumeData.education;
+        _model.selfIntroduction = resumeData.selfIntroduction;
+
+        _resumeExistsOnServer = true;
+      }
+
+      _isLoadingFromServer = false;
+      notifyListeners();
+    } catch (e) {
+      _setError('이력서를 불러오는데 실패했습니다: $e');
+      _isLoadingFromServer = false;
+      notifyListeners();
+    }
+  }
+
+  // 필드 값 업데이트
+  void updateField(String value) {
+    _model.field = value;
+    notifyListeners();
+  }
+
+  // 직무 값 업데이트
+  void updatePosition(String value) {
+    _model.position = value;
+    notifyListeners();
+  }
+
+  // 경력 값 업데이트
+  void updateExperience(String value) {
+    _model.experience = value;
+    notifyListeners();
+  }
+
+  // 면접 유형 업데이트
+  void updateInterviewType(String type, bool? isSelected) {
+    if (isSelected == true) {
+      if (!_model.interviewTypes.contains(type)) {
+        _model.interviewTypes.add(type);
+      }
+    } else {
+      _model.interviewTypes.remove(type);
+    }
+    notifyListeners();
+  }
+
+  // 학력 정보 업데이트
+  void updateEducation(String field, String value) {
+    switch (field) {
+      case 'school':
+        _model.education.school = value;
+        break;
+      case 'major':
+        _model.education.major = value;
+        break;
+      case 'degree':
+        _model.education.degree = value;
+        break;
+      case 'startDate':
+        _model.education.startDate = value;
+        break;
+      case 'endDate':
+        _model.education.endDate = value;
+        break;
+      case 'gpa':
+        _model.education.gpa = value;
+        break;
+      case 'totalGpa':
+        _model.education.totalGpa = value;
+        break;
+    }
+    notifyListeners();
+  }
+
+  // 자격증 추가
+  void addCertificate() {
+    _model.certificates.add(Certificate());
+    notifyListeners();
+  }
+
+  // 자격증 제거
+  void removeCertificate(int index) {
+    if (index >= 0 && index < _model.certificates.length) {
+      _model.certificates.removeAt(index);
+      notifyListeners();
+    }
+  }
+
+  // 자격증 정보 업데이트
+  void updateCertificate(int index, String field, String value) {
+    if (index >= 0 && index < _model.certificates.length) {
+      final certificate = _model.certificates[index];
+      switch (field) {
+        case 'name':
+          certificate.name = value;
+          break;
+        case 'issuer':
+          certificate.issuer = value;
+          break;
+        case 'date':
+          certificate.date = value;
+          break;
+        case 'score':
+          certificate.score = value;
+          break;
+      }
+      notifyListeners();
+    }
+  }
+
+  // 자기소개서 업데이트
+  void updateSelfIntroduction(String field, String value) {
+    switch (field) {
+      case 'motivation':
+        _model.selfIntroduction = SelfIntroduction(
+          motivation: value,
+          strength: _model.selfIntroduction.strength,
+        );
+        break;
+      case 'strength':
+        _model.selfIntroduction = SelfIntroduction(
+          motivation: _model.selfIntroduction.motivation,
+          strength: value,
+        );
+        break;
+    }
+    notifyListeners();
+  }
+
+  // 자기소개서 개별 필드 업데이트 메서드
+  void updateSelfIntroductionMotivation(String value) {
+    _model.selfIntroduction = SelfIntroduction(
+      motivation: value,
+      strength: _model.selfIntroduction.strength,
+    );
+    notifyListeners();
+  }
+
+  void updateSelfIntroductionStrength(String value) {
+    _model.selfIntroduction = SelfIntroduction(
+      motivation: _model.selfIntroduction.motivation,
+      strength: value,
+    );
+    notifyListeners();
+  }
+
+  // 서버에 이력서 저장
+  Future<bool> saveResumeToServer() async {
+    try {
+      _setLoading(true);
+
+      final result = await _resumeService.saveResume(_model);
+      _resumeExistsOnServer = result;
+
+      _setLoading(false);
+      return result;
+    } catch (e) {
+      _setError('이력서를 저장하는데 실패했습니다: $e');
+      _setLoading(false);
+      return false;
+    }
+  }
+
+  // 폼 검증 및 서버 저장 처리
+  Future<bool> submitForm() async {
+    if (formKey.currentState!.validate()) {
+      formKey.currentState!.save();
+      return await saveResumeToServer();
+    }
+    return false;
+  }
+
+  // 리셋 메서드
+  void resetForm() {
+    _model.field = '웹 개발';
+    _model.position = '백엔드 개발자';
+    _model.experience = '신입';
+    _model.interviewTypes = ['직무면접'];
+    _model.certificates = [];
+    _model.education = Education();
+    _model.selfIntroduction = SelfIntroduction();
+    notifyListeners();
+  }
+
+  // 로딩 상태 설정
+  void _setLoading(bool loading) {
+    _isLoading = loading;
+    notifyListeners();
+  }
+
+  // 오류 상태 설정
+  void _setError(String? errorMessage) {
+    _error = errorMessage;
+    notifyListeners();
+  }
+
+  // 현재 이력서 모델 조회
+  ResumeModel getCurrentResume() {
+    return ResumeModel(
+      field: field,
+      position: position,
+      experience: experience,
+      interviewTypes: interviewTypes,
+      certificates: certificates,
+      education: education,
+      selfIntroduction: hasPersonalityInterview
+          ? SelfIntroduction(
+              motivation: selfIntroduction.motivation,
+              strength: selfIntroduction.strength,
+            )
+          : null,
+    );
+  }
+}
