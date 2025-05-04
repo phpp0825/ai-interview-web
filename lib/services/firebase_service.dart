@@ -19,13 +19,22 @@ class FirebaseService {
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   // 이메일/비밀번호로 회원가입
-  Future<UserCredential> signUpWithEmail(String email, String password) async {
+  Future<UserCredential> signUpWithEmail(String email, String password,
+      {String? name}) async {
     try {
       UserCredential userCredential = await _auth
           .createUserWithEmailAndPassword(email: email, password: password);
 
       // 사용자 정보를 Firestore에 저장
-      await _saveUserToFirestore(userCredential.user);
+      await _saveUserToFirestore(
+        userCredential.user,
+        displayName: name,
+      );
+
+      // 이름이 제공된 경우 Firebase Auth 프로필 업데이트
+      if (name != null && name.isNotEmpty) {
+        await userCredential.user?.updateDisplayName(name);
+      }
 
       return userCredential;
     } on FirebaseAuthException catch (e) {
@@ -102,13 +111,14 @@ class FirebaseService {
   }
 
   // 사용자 정보를 Firestore에 저장
-  Future<void> _saveUserToFirestore(User? user, {bool isGuest = false}) async {
+  Future<void> _saveUserToFirestore(User? user,
+      {bool isGuest = false, String? displayName}) async {
     if (user == null) return;
 
     await _firestore.collection('users').doc(user.uid).set({
       'uid': user.uid,
       'email': user.email ?? '',
-      'displayName': user.displayName ?? '',
+      'displayName': displayName ?? user.displayName ?? '',
       'photoURL': user.photoURL ?? '',
       'isGuest': isGuest,
       'lastLogin': FieldValue.serverTimestamp(),

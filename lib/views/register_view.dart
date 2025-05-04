@@ -1,31 +1,21 @@
 import 'package:flutter/material.dart';
-import '../widgets/login/login_form.dart';
-import 'register_view.dart';
+import '../widgets/register/register_form.dart';
 
-class LoginView extends StatefulWidget {
-  const LoginView({super.key});
+class RegisterView extends StatefulWidget {
+  final VoidCallback onLoginPressed;
+
+  const RegisterView({
+    super.key,
+    required this.onLoginPressed,
+  });
 
   @override
-  State<LoginView> createState() => _LoginViewState();
+  State<RegisterView> createState() => _RegisterViewState();
 }
 
-class _LoginViewState extends State<LoginView> {
-  bool _showLoginForm = true;
-
-  void _toggleForm() {
-    setState(() {
-      _showLoginForm = !_showLoginForm;
-    });
-  }
-
+class _RegisterViewState extends State<RegisterView> {
   @override
   Widget build(BuildContext context) {
-    if (!_showLoginForm) {
-      return RegisterView(
-        onLoginPressed: _toggleForm,
-      );
-    }
-
     final screenWidth = MediaQuery.of(context).size.width;
     final horizontalPadding = screenWidth > 600 ? screenWidth * 0.08 : 16.0;
 
@@ -76,7 +66,7 @@ class _LoginViewState extends State<LoginView> {
                       ),
                     ),
 
-                    // 오른쪽 부분: 로그인 폼
+                    // 오른쪽 부분: 회원가입 폼
                     Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -96,11 +86,11 @@ class _LoginViewState extends State<LoginView> {
                           ),
                           child: const Padding(
                             padding: EdgeInsets.all(25.0),
-                            child: LoginForm(),
+                            child: RegisterForm(),
                           ),
                         ),
                         const SizedBox(height: 20),
-                        _buildRegisterLink(),
+                        _buildLoginLink(),
                       ],
                     ),
                   ],
@@ -128,7 +118,7 @@ class _LoginViewState extends State<LoginView> {
             ).createShader(bounds);
           },
           child: Text(
-            'Sign In to\nMy Application',
+            'Create Your\nAccount',
             style: TextStyle(
               fontSize: fontSize,
               fontWeight: FontWeight.bold,
@@ -138,7 +128,7 @@ class _LoginViewState extends State<LoginView> {
         ),
         const SizedBox(height: 15),
         Text(
-          'Sign in to enjoy all our features and services',
+          'Join us today and get started with your new account',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w500,
@@ -149,8 +139,8 @@ class _LoginViewState extends State<LoginView> {
     );
   }
 
-  // 회원가입 링크
-  Widget _buildRegisterLink() {
+  // 로그인 링크
+  Widget _buildLoginLink() {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: 16,
@@ -171,7 +161,7 @@ class _LoginViewState extends State<LoginView> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            "계정이 없으신가요?",
+            "계정이 있으신가요?",
             style: TextStyle(
               color: Colors.grey[700],
               fontSize: 14,
@@ -179,9 +169,9 @@ class _LoginViewState extends State<LoginView> {
           ),
           const SizedBox(width: 10),
           GestureDetector(
-            onTap: _toggleForm,
+            onTap: widget.onLoginPressed,
             child: Text(
-              "지금 가입하기",
+              "로그인하기",
               style: TextStyle(
                 color: Colors.deepPurple,
                 fontWeight: FontWeight.bold,
