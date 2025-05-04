@@ -212,7 +212,7 @@ class _ReportViewContentState extends State<_ReportViewContent> {
                 ),
 
                 const SizedBox(height: 24),
-                
+
                 // 전체적인 면접 피드백
                 const FeedbackSection(),
               ],

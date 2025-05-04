@@ -30,9 +30,9 @@ class _LoginViewState extends State<LoginView> {
     final horizontalPadding = screenWidth > 600 ? screenWidth * 0.08 : 16.0;
 
     // 반응형 크기 조정
-    double leftWidth = screenWidth > 1000 ? 400 : 350;
-    double rightWidth = screenWidth > 1000 ? 420 : 380;
-    double spacing = screenWidth > 1000 ? 80 : 40;
+    double leftWidth = screenWidth > 1000 ? 480 : 420;
+    double rightWidth = screenWidth > 1000 ? 500 : 450;
+    double spacing = screenWidth > 1000 ? 100 : 60;
 
     return Scaffold(
       body: Stack(
@@ -52,58 +52,74 @@ class _LoginViewState extends State<LoginView> {
                   horizontal: horizontalPadding,
                   vertical: 20,
                 ),
-                child: Wrap(
-                  spacing: spacing,
-                  runSpacing: 40,
-                  alignment: WrapAlignment.center,
-                  crossAxisAlignment: WrapCrossAlignment.start,
-                  children: [
-                    // 왼쪽 부분: 제목
-                    SizedBox(
-                      width: leftWidth,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 25.0),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildGradientTitle(
-                              fontSize: screenWidth > 800 ? 45 : 35,
-                            ),
-                            const SizedBox(height: 20),
-                          ],
-                        ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(25),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        spreadRadius: 2,
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
                       ),
-                    ),
-
-                    // 오른쪽 부분: 로그인 폼
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: rightWidth,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.grey.withOpacity(0.1),
-                                spreadRadius: 1,
-                                blurRadius: 5,
-                                offset: const Offset(0, 2),
+                    ],
+                  ),
+                  padding: const EdgeInsets.all(30),
+                  child: Wrap(
+                    spacing: spacing,
+                    runSpacing: 40,
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.start,
+                    children: [
+                      // 왼쪽 부분: 제목
+                      SizedBox(
+                        width: leftWidth,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 25.0),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildGradientTitle(
+                                fontSize: screenWidth > 800 ? 45 : 35,
                               ),
+                              const SizedBox(height: 20),
                             ],
                           ),
-                          child: const Padding(
-                            padding: EdgeInsets.all(25.0),
-                            child: LoginForm(),
-                          ),
                         ),
-                        const SizedBox(height: 20),
-                        _buildRegisterLink(),
-                      ],
-                    ),
-                  ],
+                      ),
+
+                      // 오른쪽 부분: 로그인 폼
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const SizedBox(height: 30),
+                          Container(
+                            width: rightWidth,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.grey.withOpacity(0.1),
+                                  spreadRadius: 1,
+                                  blurRadius: 5,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Padding(
+                              padding: EdgeInsets.all(25.0),
+                              child: LoginForm(),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          _buildRegisterLink(),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -143,6 +159,21 @@ class _LoginViewState extends State<LoginView> {
             fontSize: 16,
             fontWeight: FontWeight.w500,
             color: Colors.deepPurple[700],
+          ),
+        ),
+        const SizedBox(height: 25),
+        Container(
+          height: 450,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(15),
+            child: Image.asset(
+              'assets/images/welcome_image.jpg',
+              fit: BoxFit.contain,
+            ),
           ),
         ),
       ],
