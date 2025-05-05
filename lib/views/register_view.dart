@@ -16,13 +16,16 @@ class RegisterView extends StatefulWidget {
 class _RegisterViewState extends State<RegisterView> {
   @override
   Widget build(BuildContext context) {
+    // 반응형 레이아웃을 위한 화면 크기 계산
     final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
     final horizontalPadding = screenWidth > 600 ? screenWidth * 0.08 : 16.0;
 
-    // 반응형 크기 조정
-    double leftWidth = screenWidth > 1000 ? 480 : 420;
-    double rightWidth = screenWidth > 1000 ? 500 : 450;
-    double spacing = screenWidth > 1000 ? 100 : 60;
+    // 반응형 크기 조정 - 두 화면에서 동일한 너비 사용
+    final double leftWidth = screenWidth > 1000 ? 500 : 450;
+    final double rightWidth = screenWidth > 1000 ? 500 : 450;
+    final double formMinHeight = 520.0; // 폼 최소 높이 설정
+    final double spacing = screenWidth > 1000 ? 100 : 60;
 
     return Scaffold(
       body: Stack(
@@ -73,6 +76,7 @@ class _RegisterViewState extends State<RegisterView> {
                             children: [
                               _buildGradientTitle(
                                 fontSize: screenWidth > 800 ? 45 : 35,
+                                screenHeight: screenHeight,
                               ),
                               const SizedBox(height: 20),
                             ],
@@ -87,6 +91,9 @@ class _RegisterViewState extends State<RegisterView> {
                           const SizedBox(height: 30),
                           Container(
                             width: rightWidth,
+                            constraints: BoxConstraints(
+                              minHeight: formMinHeight,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(20),
@@ -119,11 +126,17 @@ class _RegisterViewState extends State<RegisterView> {
     );
   }
 
-  // 그라데이션 타이틀
-  Widget _buildGradientTitle({required double fontSize}) {
+  // 그라데이션 타이틀 생성
+  Widget _buildGradientTitle({required double fontSize, double? screenHeight}) {
+    // 화면 높이에 맞게 이미지 크기 조정
+    final imageHeight = screenHeight != null
+        ? screenHeight * 0.5 // 화면 높이의 50%
+        : 600.0; // 기본값
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // 그라데이션 효과가 적용된 제목 텍스트
         ShaderMask(
           shaderCallback: (bounds) {
             return LinearGradient(
@@ -143,6 +156,7 @@ class _RegisterViewState extends State<RegisterView> {
           ),
         ),
         const SizedBox(height: 15),
+        // 부제목
         Text(
           'Join us today and get started with your new account',
           style: TextStyle(
@@ -152,9 +166,10 @@ class _RegisterViewState extends State<RegisterView> {
           ),
         ),
         const SizedBox(height: 25),
+        // 회원가입 이미지
         Container(
-          height: 450,
-          width: 1000,
+          height: imageHeight,
+          width: double.infinity,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(15),
           ),
@@ -162,7 +177,7 @@ class _RegisterViewState extends State<RegisterView> {
             borderRadius: BorderRadius.circular(15),
             child: Image.asset(
               'assets/images/register_image.png',
-              fit: BoxFit.contain,
+              fit: BoxFit.cover,
             ),
           ),
         ),
@@ -170,7 +185,7 @@ class _RegisterViewState extends State<RegisterView> {
     );
   }
 
-  // 로그인 링크
+  // 로그인 링크 위젯
   Widget _buildLoginLink() {
     return Container(
       padding: const EdgeInsets.symmetric(

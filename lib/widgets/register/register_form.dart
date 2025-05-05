@@ -21,7 +21,7 @@ class _RegisterFormState extends State<RegisterForm> {
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
 
-  // FocusNode 선언을 간결하게
+  // 포커스 노드 관리
   final Map<String, FocusNode> _focusNodes = {
     'name': FocusNode(),
     'email': FocusNode(),
@@ -43,7 +43,7 @@ class _RegisterFormState extends State<RegisterForm> {
     super.dispose();
   }
 
-  // 회원가입 함수
+  // 회원가입 처리
   Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -53,7 +53,7 @@ class _RegisterFormState extends State<RegisterForm> {
     });
 
     try {
-      // Firebase 서비스 한 번만 가져오기
+      // Firebase 서비스 가져오기
       final firebaseService =
           Provider.of<FirebaseService>(context, listen: false);
 
@@ -76,7 +76,7 @@ class _RegisterFormState extends State<RegisterForm> {
     }
   }
 
-  // 다음 필드로 포커스 이동
+  // 다음 입력 필드로 포커스 이동
   void _fieldFocusChange(String current, String next) {
     _focusNodes[current]?.unfocus();
     FocusScope.of(context).requestFocus(_focusNodes[next]);
@@ -101,7 +101,7 @@ class _RegisterFormState extends State<RegisterForm> {
           ),
           const SizedBox(height: 50),
 
-          // 입력 필드들
+          // 이름 입력 필드
           _buildInputField(
             controller: _nameController,
             focusNode: _focusNodes['name']!,
@@ -115,6 +115,7 @@ class _RegisterFormState extends State<RegisterForm> {
           ),
           const SizedBox(height: 30),
 
+          // 이메일 입력 필드
           _buildInputField(
             controller: _emailController,
             focusNode: _focusNodes['email']!,
@@ -137,6 +138,7 @@ class _RegisterFormState extends State<RegisterForm> {
           ),
           const SizedBox(height: 30),
 
+          // 비밀번호 입력 필드
           _buildPasswordField(
             controller: _passwordController,
             focusNode: _focusNodes['password']!,
@@ -162,6 +164,7 @@ class _RegisterFormState extends State<RegisterForm> {
           ),
           const SizedBox(height: 30),
 
+          // 비밀번호 확인 입력 필드
           _buildPasswordField(
             controller: _confirmPasswordController,
             focusNode: _focusNodes['confirmPassword']!,
@@ -198,7 +201,7 @@ class _RegisterFormState extends State<RegisterForm> {
     );
   }
 
-  // 일반 입력 필드 생성 함수
+  // 일반 입력 필드 생성
   Widget _buildInputField({
     required TextEditingController controller,
     required FocusNode focusNode,
@@ -256,7 +259,7 @@ class _RegisterFormState extends State<RegisterForm> {
     );
   }
 
-  // 비밀번호 입력 필드 생성 함수
+  // 비밀번호 입력 필드 생성
   Widget _buildPasswordField({
     required TextEditingController controller,
     required FocusNode focusNode,

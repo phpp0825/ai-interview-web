@@ -25,7 +25,7 @@ class _LoginFormState extends State<LoginForm> {
     super.dispose();
   }
 
-  // 이메일/비밀번호 로그인
+  // 이메일/비밀번호 로그인 처리
   Future<void> _signInWithEmail() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -55,7 +55,7 @@ class _LoginFormState extends State<LoginForm> {
     }
   }
 
-  // 게스트 로그인
+  // 게스트 로그인 처리
   Future<void> _signInAnonymously() async {
     setState(() {
       _isLoading = true;
@@ -80,6 +80,7 @@ class _LoginFormState extends State<LoginForm> {
     }
   }
 
+  // Google 로그인 처리
   Future<void> _signInWithGoogle() async {
     setState(() {
       _isLoading = true;
@@ -152,6 +153,7 @@ class _LoginFormState extends State<LoginForm> {
     );
   }
 
+  // 이메일 입력 필드 생성
   Widget _buildEmailField() {
     return TextFormField(
       controller: _emailController,
@@ -191,6 +193,7 @@ class _LoginFormState extends State<LoginForm> {
     );
   }
 
+  // 비밀번호 입력 필드 생성
   Widget _buildPasswordField() {
     return TextFormField(
       controller: _passwordController,
@@ -248,6 +251,7 @@ class _LoginFormState extends State<LoginForm> {
     );
   }
 
+  // 에러 메시지 표시 위젯
   Widget _buildErrorMessage() {
     return Column(
       children: [
@@ -274,6 +278,7 @@ class _LoginFormState extends State<LoginForm> {
     );
   }
 
+  // 로그인 버튼 생성
   Widget _buildSignInButton() {
     return Container(
       decoration: BoxDecoration(
@@ -324,6 +329,7 @@ class _LoginFormState extends State<LoginForm> {
     );
   }
 
+  // 게스트 로그인 버튼 생성
   Widget _buildGuestButton() {
     return SizedBox(
       width: double.infinity,
@@ -348,6 +354,7 @@ class _LoginFormState extends State<LoginForm> {
     );
   }
 
+  // 구글 로그인 버튼 생성
   Widget _buildGoogleButton() {
     return SizedBox(
       width: double.infinity,

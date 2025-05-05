@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'services/firebase_service.dart';
 import 'views/login_view.dart';
 import 'views/home_view.dart';
+import 'views/landing_view.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -51,10 +52,10 @@ class MyApp extends StatelessWidget {
           ],
         ),
         theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
           useMaterial3: true,
         ),
-        home: const AuthWrapper(),
+        home: const LandingView(),
       ),
     );
   }
