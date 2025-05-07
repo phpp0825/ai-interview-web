@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import '../models/report_model.dart';
 import '../services/report_service.dart';
+import '../views/resume_view.dart';
 
 class ReportController extends ChangeNotifier {
   // 의존성
@@ -67,6 +68,59 @@ class ReportController extends ChangeNotifier {
     final minutes = seconds ~/ 60;
     final remainingSeconds = seconds % 60;
     return '$minutes:${remainingSeconds.toString().padLeft(2, '0')}';
+  }
+
+  // 리포트 생성 다이얼로그 표시
+  void showCreateReportDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          title: Row(
+            children: [
+              Icon(Icons.assessment, color: Colors.blue),
+              const SizedBox(width: 10),
+              const Text('새 리포트 생성'),
+            ],
+          ),
+          content: const Text(
+            '새로운 면접 리포트를 생성하시겠습니까?\n이력서 정보가 필요합니다.',
+            style: TextStyle(fontSize: 16),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('취소'),
+            ),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.arrow_forward),
+              label: const Text('이력서로 이동'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                navigateToResumeView(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // 이력서 화면으로 이동
+  void navigateToResumeView(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const ResumeView(),
+      ),
+    );
   }
 
   // 로딩 상태 변경

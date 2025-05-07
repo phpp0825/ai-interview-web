@@ -134,6 +134,16 @@ class _ReportViewContentState extends State<_ReportViewContent> {
         title: Text(reportData.title),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
+        actions: [
+          // 리포트 생성 버튼 추가
+          IconButton(
+            onPressed: () {
+              controller.showCreateReportDialog(context);
+            },
+            icon: const Icon(Icons.add_chart),
+            tooltip: '새 리포트 생성',
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Center(

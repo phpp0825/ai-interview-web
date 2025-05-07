@@ -1,125 +1,294 @@
-import 'dart:convert';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/report_model.dart';
+import '../models/resume_model.dart';
 
+/// 리포트 관련 서비스 기능을 제공하는 클래스
+///
+/// 이 서비스는 리포트 데이터의 조회, 생성, 수정, 삭제 기능을 담당합니다.
+/// Firestore와의 통신을 통해 데이터를 관리합니다.
 class ReportService {
-  // API 엔드포인트 (실제 서버 주소로 변경 필요)
-  static const String baseUrl = 'https://your-api-server.com/api';
+  // Firestore 인스턴스
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // 단일 리포트 조회
+  // Firebase Auth 인스턴스
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  /// 단일 리포트 조회
+  ///
+  /// [reportId]에 해당하는 리포트를 Firestore에서 조회합니다.
   Future<ReportModel> getReport(String reportId) async {
     try {
-      // 실제 API 연동 시에는 아래 주석 해제
-      // final response = await http.get(Uri.parse('$baseUrl/reports/$reportId'));
+      // Firestore에서 데이터 조회
+      final doc = await _firestore.collection('reports').doc(reportId).get();
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
 
-      // if (response.statusCode == 200) {
-      //   return ReportModel.fromJson(json.decode(response.body));
-      // } else {
-      //   throw Exception('Failed to load report: ${response.statusCode}');
-      // }
+        // Firestore에서 리포트 데이터 변환
+        return _convertFirestoreToReportModel(doc.id, data);
+      }
 
-      // 테스트용 모의 데이터
-      await Future.delayed(const Duration(milliseconds: 800)); // 네트워크 지연 시뮬레이션
-      return _getMockReport(reportId);
+      throw Exception('리포트를 찾을 수 없습니다.');
     } catch (e) {
-      // 에러 발생 시 기본 데이터 또는 예외 처리
+      print('리포트 조회 중 오류 발생: $e');
       throw Exception('데이터를 가져오는데 실패했습니다: $e');
     }
   }
 
-  // 모든 리포트 목록 조회
-  Future<List<ReportModel>> getAllReports() async {
-    try {
-      // 실제 API 연동 시에는 아래 주석 해제
-      // final response = await http.get(Uri.parse('$baseUrl/reports'));
-
-      // if (response.statusCode == 200) {
-      //   final List<dynamic> data = json.decode(response.body);
-      //   return data.map((json) => ReportModel.fromJson(json)).toList();
-      // } else {
-      //   throw Exception('Failed to load reports: ${response.statusCode}');
-      // }
-
-      // 테스트용 모의 데이터
-      await Future.delayed(const Duration(seconds: 1)); // 네트워크 지연 시뮬레이션
-
-      return [
-        _getMockReport('sample-report-1'),
-        _getMockReport('sample-report-2'),
-      ];
-    } catch (e) {
-      throw Exception('데이터를 가져오는데 실패했습니다: $e');
+  /// Firestore 문서를 ReportModel로 변환
+  ///
+  /// [id]와 [data]를 사용하여 ReportModel 객체를 생성합니다.
+  ReportModel _convertFirestoreToReportModel(
+      String id, Map<String, dynamic> data) {
+    // 타임스탬프 데이터 변환
+    List<TimeStampModel> timestamps = [];
+    if (data['timestamps'] != null) {
+      timestamps = (data['timestamps'] as List).map((ts) {
+        return TimeStampModel(
+          time: ts['time'] ?? 0,
+          label: ts['label'] ?? '',
+          description: ts['description'] ?? '',
+        );
+      }).toList();
     }
-  }
 
-  // 모의 데이터 생성 (테스트용)
-  ReportModel _getMockReport(String reportId) {
-    // 샘플 타임스탬프 데이터
-    final List<TimeStampModel> timeStamps = [
-      TimeStampModel(time: 10, label: '자기소개', description: '면접자 자기소개 시작'),
-      TimeStampModel(time: 30, label: '이력 설명', description: '이전 업무 경험 설명'),
-      TimeStampModel(
-          time: 60, label: '기술 역량', description: '기술 스택과 프로젝트 경험 설명'),
-      TimeStampModel(time: 90, label: '협업 능력', description: '팀 프로젝트 경험 공유'),
-      TimeStampModel(time: 120, label: '마무리', description: '면접 마무리 단계'),
-    ];
+    // 말하기 속도 데이터 변환
+    List<FlSpot> speechSpeedData = [];
+    if (data['speechSpeedData'] != null) {
+      speechSpeedData = (data['speechSpeedData'] as List).map((point) {
+        return FlSpot(
+          point['x']?.toDouble() ?? 0.0,
+          point['y']?.toDouble() ?? 0.0,
+        );
+      }).toList();
+    }
 
-    // 말하기 속도 샘플 데이터
-    final List<FlSpot> speechSpeedData = [
-      const FlSpot(0, 120),
-      const FlSpot(15, 145),
-      const FlSpot(30, 160),
-      const FlSpot(45, 170),
-      const FlSpot(60, 190), // 긴장으로 빨라짐
-      const FlSpot(75, 175),
-      const FlSpot(90, 140), // 협업 경험 설명 시 안정적
-      const FlSpot(105, 150),
-      const FlSpot(120, 130), // 마무리 단계에서 안정적
-      const FlSpot(135, 120),
-    ];
-
-    // 시선 처리 샘플 데이터
-    final List<ScatterSpot> gazeData = [
-      // 면접 초반 (파란색) - 긴장으로 시선이 불안정
-      ScatterSpot(-0.8, 0.7, color: Colors.blue, radius: 8),
-      ScatterSpot(-0.3, 0.5, color: Colors.blue, radius: 6),
-      ScatterSpot(0.1, 0.3, color: Colors.blue, radius: 4),
-      ScatterSpot(0.5, 0.1, color: Colors.blue, radius: 5),
-      ScatterSpot(0.7, -0.3, color: Colors.blue, radius: 7),
-      ScatterSpot(-0.4, -0.6, color: Colors.blue, radius: 8),
-      ScatterSpot(-0.9, -0.2, color: Colors.blue, radius: 6),
-
-      // 면접 중반 (보라색) - 안정되기 시작하지만 여전히 불안정
-      ScatterSpot(-0.5, 0.2, color: Colors.purple, radius: 10),
-      ScatterSpot(-0.2, 0.1, color: Colors.purple, radius: 12),
-      ScatterSpot(0.0, 0.0, color: Colors.purple, radius: 14), // 중앙에 오래 머무름
-      ScatterSpot(0.3, -0.1, color: Colors.purple, radius: 9),
-      ScatterSpot(0.2, -0.4, color: Colors.purple, radius: 8),
-
-      // 면접 후반 (빨간색) - 안정적으로 중앙에 집중
-      ScatterSpot(-0.1, 0.1, color: Colors.red, radius: 10),
-      ScatterSpot(0.1, 0.1, color: Colors.red, radius: 15),
-      ScatterSpot(0.0, 0.0, color: Colors.red, radius: 20), // 중앙에 더 오래 머무름
-      ScatterSpot(-0.1, -0.1, color: Colors.red, radius: 12),
-      ScatterSpot(0.1, -0.1, color: Colors.red, radius: 14),
-    ];
+    // 시선 처리 데이터 변환
+    List<ScatterSpot> gazeData = [];
+    if (data['gazeData'] != null) {
+      gazeData = (data['gazeData'] as List).map((point) {
+        return ScatterSpot(
+          point['x']?.toDouble() ?? 0.0,
+          point['y']?.toDouble() ?? 0.0,
+          color: _getColorFromString(point['color'] ?? 'blue'),
+          radius: point['radius']?.toDouble() ?? 4.0,
+        );
+      }).toList();
+    }
 
     return ReportModel(
-      id: reportId,
-      title: '면접 분석 보고서 #$reportId',
-      date: DateTime.now().subtract(const Duration(days: 2)),
-      field: '웹 개발',
-      position: '백엔드 개발자',
-      interviewType: '직무면접',
-      duration: 35, // 분 단위
-      score: 85,
-      videoUrl:
-          'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-      timestamps: timeStamps,
+      id: id,
+      title: data['title'] ?? '면접 분석 보고서',
+      date: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      field: data['resumeData']?['field'] ?? data['field'] ?? '직무 분야',
+      position: data['resumeData']?['position'] ?? data['position'] ?? '직무 포지션',
+      interviewType: data['interviewType'] ?? '직무면접',
+      duration: data['duration'] ?? 30,
+      score: data['score'] ?? 0,
+      videoUrl: data['videoUrl'] ?? '',
+      timestamps: timestamps,
       speechSpeedData: speechSpeedData,
       gazeData: gazeData,
     );
+  }
+
+  /// 색상 문자열을 Colors 객체로 변환
+  Color _getColorFromString(String colorName) {
+    switch (colorName.toLowerCase()) {
+      case 'red':
+        return Colors.red;
+      case 'blue':
+        return Colors.blue;
+      case 'green':
+        return Colors.green;
+      case 'purple':
+        return Colors.purple;
+      case 'yellow':
+        return Colors.yellow;
+      default:
+        return Colors.blue;
+    }
+  }
+
+  /// 현재 사용자의 모든 리포트 조회
+  Future<List<ReportModel>> getCurrentUserReports() async {
+    try {
+      final User? currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('로그인된 사용자가 없습니다.');
+      }
+
+      final String userId = currentUser.uid;
+
+      // Firestore에서 사용자의 리포트 목록 조회
+      final QuerySnapshot reports = await _firestore
+          .collection('reports')
+          .where('userId', isEqualTo: userId)
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      if (reports.docs.isNotEmpty) {
+        return reports.docs.map((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          return _convertFirestoreToReportModel(doc.id, data);
+        }).toList();
+      }
+
+      // 리포트가 없는 경우 빈 배열 반환
+      return [];
+    } catch (e) {
+      print('리포트 목록 조회 중 오류 발생: $e');
+      throw Exception('리포트 목록을 가져오는데 실패했습니다: $e');
+    }
+  }
+
+  /// 이력서 데이터를 기반으로 리포트 생성
+  ///
+  /// [resume] 데이터를 사용하여 새로운 리포트를 생성합니다.
+  Future<String> createReport(ResumeModel resume) async {
+    try {
+      final User? currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('로그인된 사용자가 없습니다.');
+      }
+
+      final String userId = currentUser.uid;
+      final String reportId = DateTime.now().millisecondsSinceEpoch.toString();
+
+      // 이력서의 경험/직무 정보를 활용하여 인터뷰 타입 결정
+      final List<String> interviewTypes = resume.interviewTypes;
+      final String interviewType =
+          interviewTypes.isNotEmpty ? interviewTypes.first : '직무면접';
+
+      // 리포트 제목 생성
+      String title = '${resume.position} ';
+      if (resume.experience.isNotEmpty) {
+        title += '${resume.experience} ';
+      }
+      title += '면접 분석';
+
+      // Firestore에 리포트 정보 저장
+      await _firestore.collection('reports').doc(reportId).set({
+        'reportId': reportId,
+        'userId': userId,
+        'title': title,
+        'resumeData': resume.toMap(),
+        'field': resume.field,
+        'position': resume.position,
+        'interviewType': interviewType,
+        'status': 'pending', // 상태: pending, processing, completed, failed
+        'score': 0, // 초기 점수 0
+        'duration': 0, // 초기 시간 0
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      print('리포트가 성공적으로 생성되었습니다. 리포트 ID: $reportId');
+      return reportId;
+    } catch (e) {
+      print('리포트 생성 중 오류 발생: $e');
+      throw Exception('리포트를 생성하는데 실패했습니다: $e');
+    }
+  }
+
+  /// 리포트 상태 업데이트
+  ///
+  /// [reportId]에 해당하는 리포트의 상태를 [status]로 업데이트합니다.
+  Future<bool> updateReportStatus(String reportId, String status) async {
+    try {
+      final User? currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('로그인된 사용자가 없습니다.');
+      }
+
+      // 리포트 문서 조회
+      final doc = await _firestore.collection('reports').doc(reportId).get();
+      if (!doc.exists) {
+        throw Exception('존재하지 않는 리포트입니다.');
+      }
+
+      final data = doc.data() as Map<String, dynamic>;
+      if (data['userId'] != currentUser.uid) {
+        throw Exception('해당 리포트에 대한 접근 권한이 없습니다.');
+      }
+
+      // 상태 업데이트
+      await _firestore.collection('reports').doc(reportId).update({
+        'status': status,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      return true;
+    } catch (e) {
+      print('리포트 상태 업데이트 중 오류 발생: $e');
+      throw Exception('리포트 상태를 업데이트하는데 실패했습니다: $e');
+    }
+  }
+
+  /// 리포트 삭제
+  ///
+  /// [reportId]에 해당하는 리포트를 삭제합니다.
+  Future<bool> deleteReport(String reportId) async {
+    try {
+      final User? currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('로그인된 사용자가 없습니다.');
+      }
+
+      // 리포트 문서 조회
+      final doc = await _firestore.collection('reports').doc(reportId).get();
+      if (!doc.exists) {
+        throw Exception('존재하지 않는 리포트입니다.');
+      }
+
+      final data = doc.data() as Map<String, dynamic>;
+      if (data['userId'] != currentUser.uid) {
+        throw Exception('해당 리포트에 대한 접근 권한이 없습니다.');
+      }
+
+      // 리포트 삭제
+      await _firestore.collection('reports').doc(reportId).delete();
+
+      // 사용자 문서에서 리포트 ID 제거
+      await _firestore.collection('users').doc(currentUser.uid).update({
+        'reports': FieldValue.arrayRemove([reportId]),
+      });
+
+      return true;
+    } catch (e) {
+      print('리포트 삭제 중 오류 발생: $e');
+      throw Exception('리포트를 삭제하는데 실패했습니다: $e');
+    }
+  }
+
+  /// 모든 리포트 목록 조회 (관리자용)
+  Future<List<ReportModel>> getAllReports() async {
+    try {
+      // 관리자 권한 확인 로직 필요
+      final User? currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('로그인된 사용자가 없습니다.');
+      }
+
+      // Firestore에서 모든 리포트 조회
+      final QuerySnapshot reports = await _firestore
+          .collection('reports')
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      if (reports.docs.isNotEmpty) {
+        return reports.docs.map((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          return _convertFirestoreToReportModel(doc.id, data);
+        }).toList();
+      }
+
+      return [];
+    } catch (e) {
+      print('전체 리포트 목록 조회 중 오류 발생: $e');
+      throw Exception('리포트 목록을 가져오는데 실패했습니다: $e');
+    }
   }
 }

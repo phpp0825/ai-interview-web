@@ -1,4 +1,3 @@
-import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import '../models/resume_model.dart';
 import '../services/resume_service.dart';
@@ -261,12 +260,13 @@ class ResumeController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // 서버에 이력서 저장
-  Future<bool> saveResumeToServer() async {
+  // 이력서 저장
+  Future<bool> saveResume() async {
     try {
       _setLoading(true);
 
-      final result = await _resumeService.saveResume(_model);
+      // ResumeService를 통해 이력서 저장
+      final result = await _resumeService.saveResumeToFirestore(_model);
       _resumeExistsOnServer = result;
 
       _setLoading(false);
@@ -278,11 +278,31 @@ class ResumeController extends ChangeNotifier {
     }
   }
 
-  // 폼 검증 및 서버 저장 처리
+  // 이력서 정보로 리포트 생성
+  Future<String?> createReportWithResume() async {
+    try {
+      _setLoading(true);
+
+      // ResumeService를 통해 이력서 정보로 리포트 생성
+      final String reportId =
+          await _resumeService.createReportWithResume(_model);
+
+      _setLoading(false);
+      return reportId;
+    } catch (e) {
+      _setError('리포트를 생성하는데 실패했습니다: $e');
+      _setLoading(false);
+      return null;
+    }
+  }
+
+  // 폼 검증 및 저장 처리
   Future<bool> submitForm() async {
     if (formKey.currentState!.validate()) {
       formKey.currentState!.save();
-      return await saveResumeToServer();
+
+      // Firestore에 저장
+      return await saveResume();
     }
     return false;
   }
