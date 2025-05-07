@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../services/firebase_service.dart';
+import '../../views/home_view.dart';
 
 class LoginForm extends StatefulWidget {
   const LoginForm({super.key});
@@ -35,13 +36,25 @@ class _LoginFormState extends State<LoginForm> {
     });
 
     try {
-      await Provider.of<FirebaseService>(
+      final firebaseService = Provider.of<FirebaseService>(
         context,
         listen: false,
-      ).signInWithEmail(
+      );
+
+      await firebaseService.signInWithEmail(
         _emailController.text.trim(),
         _passwordController.text.trim(),
       );
+
+      // 로그인 후 상태 확인
+      if (firebaseService.currentUser != null) {
+        print('이메일 로그인 성공: ${firebaseService.currentUser!.uid}');
+
+        // 명시적 라우트를 사용하여 홈 화면으로 이동
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
+      }
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();
@@ -63,14 +76,39 @@ class _LoginFormState extends State<LoginForm> {
     });
 
     try {
-      await Provider.of<FirebaseService>(
+      print('게스트 로그인 버튼 클릭');
+      final firebaseService = Provider.of<FirebaseService>(
         context,
         listen: false,
-      ).signInAnonymously();
+      );
+
+      await firebaseService.signInAnonymously();
+      print('게스트 로그인 성공');
+
+      // 로그인 후 상태 확인
+      if (firebaseService.currentUser != null) {
+        print('게스트 로그인 성공: ${firebaseService.currentUser!.uid}');
+
+        // 명시적 라우트를 사용하여 홈 화면으로 이동
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
+      } else {
+        print('로그인 후에도 유저가 null입니다.');
+        setState(() {
+          _errorMessage = '로그인에 성공했으나 사용자 정보를 가져올 수 없습니다.';
+        });
+      }
     } catch (e) {
+      print('게스트 로그인 실패: $e');
       setState(() {
         _errorMessage = e.toString();
       });
+
+      // 실패 후 추가 디버깅
+      final user =
+          Provider.of<FirebaseService>(context, listen: false).currentUser;
+      print('현재 유저 상태: ${user != null ? "로그인됨 - ${user.uid}" : "로그인되지 않음"}');
     } finally {
       if (mounted) {
         setState(() {
@@ -88,10 +126,22 @@ class _LoginFormState extends State<LoginForm> {
     });
 
     try {
-      await Provider.of<FirebaseService>(
+      final firebaseService = Provider.of<FirebaseService>(
         context,
         listen: false,
-      ).signInWithGoogle();
+      );
+
+      await firebaseService.signInWithGoogle();
+
+      // 로그인 후 상태 확인
+      if (firebaseService.currentUser != null) {
+        print('구글 로그인 성공: ${firebaseService.currentUser!.uid}');
+
+        // 명시적 라우트를 사용하여 홈 화면으로 이동
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
+      }
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();
@@ -343,13 +393,35 @@ class _LoginFormState extends State<LoginForm> {
             borderRadius: BorderRadius.circular(15),
           ),
         ),
-        child: Text(
-          '게스트로 계속하기',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w500,
-            fontSize: 16,
-          ),
-        ),
+        child: _isLoading
+            ? Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    '처리 중...',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w500,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              )
+            : Text(
+                '게스트로 계속하기',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 16,
+                ),
+              ),
       ),
     );
   }

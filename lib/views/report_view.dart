@@ -50,6 +50,7 @@ class _ReportViewContentState extends State<_ReportViewContent> {
     // 로딩 중 상태
     if (controller.isLoading) {
       return Scaffold(
+        backgroundColor: Colors.white,
         appBar: AppBar(
           title: const Text('면접 보고서'),
           backgroundColor: Theme.of(context).colorScheme.primary,
@@ -64,6 +65,7 @@ class _ReportViewContentState extends State<_ReportViewContent> {
     // 에러 상태
     if (controller.error != null) {
       return Scaffold(
+        backgroundColor: Colors.white,
         appBar: AppBar(
           title: const Text('면접 보고서'),
           backgroundColor: Theme.of(context).colorScheme.primary,
@@ -111,6 +113,7 @@ class _ReportViewContentState extends State<_ReportViewContent> {
     // 데이터가 없는 경우
     if (controller.reportData == null) {
       return Scaffold(
+        backgroundColor: Colors.white,
         appBar: AppBar(
           title: const Text('면접 보고서'),
           backgroundColor: Theme.of(context).colorScheme.primary,
@@ -126,6 +129,7 @@ class _ReportViewContentState extends State<_ReportViewContent> {
     final reportData = controller.reportData!;
 
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(reportData.title),
         backgroundColor: Theme.of(context).colorScheme.primary,
@@ -136,6 +140,7 @@ class _ReportViewContentState extends State<_ReportViewContent> {
           child: Container(
             constraints: const BoxConstraints(maxWidth: 1200),
             padding: const EdgeInsets.all(24.0),
+            color: Colors.white,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

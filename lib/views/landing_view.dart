@@ -88,11 +88,10 @@ class LandingView extends StatelessWidget {
                         Text(
                           'Ainterview',
                           style: TextStyle(
-                            fontSize: titleFontSize,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.deepPurple.shade600,
-                            height: 1.1
-                          ),
+                              fontSize: titleFontSize,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.deepPurple.shade600,
+                              height: 1.1),
                         ),
                         const SizedBox(height: 24),
                         // 설명 텍스트
@@ -108,7 +107,7 @@ class LandingView extends StatelessWidget {
                         // 버튼
                         ElevatedButton(
                           onPressed: () {
-                            Navigator.push(
+                            Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
                                   builder: (context) => const LoginView()),
@@ -198,7 +197,7 @@ class LandingView extends StatelessWidget {
                         // 버튼
                         ElevatedButton(
                           onPressed: () {
-                            Navigator.push(
+                            Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
                                   builder: (context) => const LoginView()),

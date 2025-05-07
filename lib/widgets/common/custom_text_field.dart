@@ -39,6 +39,8 @@ class CustomTextField extends StatelessWidget {
             border: const OutlineInputBorder(),
             prefixIcon: icon != null ? Icon(icon) : null,
             contentPadding: const EdgeInsets.all(16),
+            fillColor: Colors.white,
+            filled: true,
           ),
           maxLines: maxLines,
           keyboardType: keyboardType,
@@ -82,7 +84,7 @@ class CustomDropdown<T> extends StatelessWidget {
         Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
-            color: Colors.grey.shade50,
+            color: Colors.white,
             border: Border.all(color: Colors.grey.shade300),
           ),
           child: DropdownButtonFormField<T>(
@@ -92,6 +94,8 @@ class CustomDropdown<T> extends StatelessWidget {
             decoration: InputDecoration(
               prefixIcon: icon != null ? Icon(icon) : null,
               border: InputBorder.none,
+              fillColor: Colors.white,
+              filled: true,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
                 vertical: 12,

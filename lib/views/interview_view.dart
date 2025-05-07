@@ -65,6 +65,7 @@ class _InterviewViewState extends State<InterviewView> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
+          backgroundColor: Colors.white,
           title: const Text('이력서 정보 없음'),
           content:
               const Text('면접을 시작하기 전에 이력서 정보가 필요합니다. 이력서 작성 페이지로 이동하시겠습니까?'),
@@ -81,8 +82,10 @@ class _InterviewViewState extends State<InterviewView> {
                 Navigator.of(context).pop(); // 홈 화면으로 돌아가기
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                foregroundColor: Colors.white,
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.deepPurple,
+                elevation: 1,
+                side: BorderSide(color: Colors.deepPurple),
               ),
               child: const Text('이력서 작성하기'),
             ),
@@ -150,23 +153,16 @@ class _InterviewViewState extends State<InterviewView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(_isInterviewStarted ? '면접 진행 중' : '면접 실행'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
+        backgroundColor: Colors.deepPurple,
+        elevation: 0,
         foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
         child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Colors.blue.shade50,
-                Colors.white,
-              ],
-            ),
-          ),
+          color: Colors.white,
           child: Center(
             child: Container(
               margin: const EdgeInsets.all(20),
@@ -206,33 +202,41 @@ class _InterviewViewState extends State<InterviewView> {
           size: 80,
           color: Theme.of(context).colorScheme.primary,
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 30),
         const Text(
-          '면접 시뮬레이션',
+          '모의 면접 시작하기',
           style: TextStyle(
-            fontSize: 32,
+            fontSize: 28,
             fontWeight: FontWeight.bold,
           ),
         ),
-        const SizedBox(height: 16),
-        const Text(
-          '이력서 정보를 바탕으로 맞춤형 면접 질문을 받을 수 있습니다.\n카메라와 마이크를 준비하고 시작하세요.',
-          style: TextStyle(fontSize: 16),
-          textAlign: TextAlign.center,
+        const SizedBox(height: 20),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 40),
+          child: Text(
+            '면접 시뮬레이션을 통해 실제 면접에 대비하세요. 답변을 녹음하고 피드백을 받을 수 있습니다.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.black54,
+              height: 1.5,
+            ),
+          ),
         ),
-        const SizedBox(height: 48),
-        _buildInterviewSettings(),
-        const SizedBox(height: 48),
+        const SizedBox(height: 40),
         ElevatedButton.icon(
           onPressed: _startInterview,
           icon: const Icon(Icons.play_arrow),
           label: const Text('면접 시작하기'),
           style: ElevatedButton.styleFrom(
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-            textStyle:
-                const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            backgroundColor: Colors.white,
+            foregroundColor: Colors.deepPurple,
+            elevation: 1,
+            side: BorderSide(color: Colors.deepPurple),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 32,
+              vertical: 16,
+            ),
           ),
         ),
         const SizedBox(height: 40),
@@ -340,7 +344,7 @@ class _InterviewViewState extends State<InterviewView> {
         const SizedBox(height: 40),
         _buildCameraPreviewPlaceholder(),
         const SizedBox(height: 30),
-        _buildControlButtons(),
+        _buildActionButtons(),
         const SizedBox(height: 30),
       ],
     );
@@ -370,44 +374,40 @@ class _InterviewViewState extends State<InterviewView> {
     );
   }
 
-  Widget _buildControlButtons() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          ElevatedButton.icon(
-            onPressed: _generateNextQuestion,
-            icon: const Icon(Icons.skip_next),
-            label: const Text('다음 질문'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+  Widget _buildActionButtons() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        ElevatedButton.icon(
+          onPressed: _generateNextQuestion,
+          icon: const Icon(Icons.refresh),
+          label: const Text('다음 질문'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.white,
+            foregroundColor: Colors.deepPurple,
+            elevation: 1,
+            side: BorderSide(color: Colors.deepPurple),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24,
+              vertical: 12,
             ),
           ),
-          const SizedBox(width: 16),
-          OutlinedButton.icon(
-            onPressed: _endInterview,
-            icon: const Icon(Icons.stop),
-            label: const Text('면접 종료'),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        ),
+        const SizedBox(width: 16),
+        OutlinedButton.icon(
+          onPressed: _endInterview,
+          icon: const Icon(Icons.close),
+          label: const Text('면접 종료'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.red,
+            side: const BorderSide(color: Colors.red),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24,
+              vertical: 12,
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

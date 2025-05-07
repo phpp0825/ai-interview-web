@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import '../services/firebase_service.dart';
+import '../widgets/dashboard/dashboard_view.dart';
 import 'resume_view.dart';
 import 'interview_view.dart';
 import 'report_view.dart';
@@ -22,22 +23,53 @@ class _HomePageState extends State<HomePage> {
     );
     final user = Provider.of<User?>(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('홈'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Colors.white,
-        actions: [
-          _buildNavMenu(context),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await firebaseService.signOut();
-            },
-          ),
-        ],
+    return Theme(
+      data: Theme.of(context).copyWith(
+        scaffoldBackgroundColor: Colors.white,
+        colorScheme: Theme.of(
+          context,
+        ).colorScheme.copyWith(background: Colors.white),
       ),
-      body: _buildDesktopBody(context),
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          title: const Text('홈'),
+          backgroundColor: Colors.deepPurple,
+          elevation: 0,
+          foregroundColor: Colors.white,
+          actions: [
+            _buildNavMenu(context),
+            IconButton(
+              icon: const Icon(Icons.logout),
+              onPressed: () async {
+                try {
+                  // 로그아웃 진행
+                  await firebaseService.signOut();
+
+                  // 로그아웃 후 상태 확인 및 디버깅
+                  print(
+                      '로그아웃 완료됨: ${FirebaseAuth.instance.currentUser == null ? "성공" : "실패"}');
+
+                  // 로그인 화면으로 강제 이동 (AuthWrapper를 거치지 않고 직접 이동)
+                  if (mounted) {
+                    Navigator.of(context).pushReplacementNamed('/');
+                  }
+                } catch (e) {
+                  // 로그아웃 실패 시 오류 처리
+                  print('로그아웃 실패: $e');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('로그아웃 중 오류가 발생했습니다: $e')),
+                  );
+                }
+              },
+            ),
+          ],
+        ),
+        body: Container(
+          color: Colors.white,
+          child: const SafeArea(child: DashboardView()),
+        ),
+      ),
     );
   }
 
@@ -62,9 +94,11 @@ class _HomePageState extends State<HomePage> {
               context: context,
               builder: (BuildContext context) {
                 return AlertDialog(
+                  backgroundColor: Colors.white,
                   title: const Text('면접 시작하기'),
-                  content:
-                      const Text('면접을 시작하기 전에 이력서 정보가 필요합니다. 이력서를 작성하시겠습니까?'),
+                  content: const Text(
+                    '면접을 시작하기 전에 이력서 정보가 필요합니다. 이력서를 작성하시겠습니까?',
+                  ),
                   actions: [
                     TextButton(
                       onPressed: () {
@@ -72,7 +106,8 @@ class _HomePageState extends State<HomePage> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (context) => const InterviewView()),
+                            builder: (context) => const InterviewView(),
+                          ),
                         );
                       },
                       child: const Text('이력서 없이 진행'),
@@ -83,12 +118,15 @@ class _HomePageState extends State<HomePage> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (context) => const ResumeView()),
+                            builder: (context) => const ResumeView(),
+                          ),
                         );
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        foregroundColor: Colors.white,
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.deepPurple,
+                        elevation: 1,
+                        side: BorderSide(color: Colors.deepPurple),
                       ),
                       child: const Text('이력서 작성하기'),
                     ),
@@ -116,32 +154,6 @@ class _HomePageState extends State<HomePage> {
         ),
         const SizedBox(width: 16),
       ],
-    );
-  }
-
-  Widget _buildDesktopBody(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.web, size: 120, color: Colors.blue),
-            const SizedBox(height: 32),
-            const Text(
-              'Flutter 웹 프로젝트에 오신 것을 환영합니다!',
-              style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              '이 프로젝트는 Flutter 웹 개발을 위한 기본 템플릿입니다.',
-              style: TextStyle(fontSize: 18),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

@@ -92,15 +92,38 @@ class FirebaseService {
 
   // 게스트 로그인
   Future<UserCredential> signInAnonymously() async {
+    print('게스트 로그인 시도 중...');
     try {
+      // 기존 익명 세션이 있으면 먼저 로그아웃
+      if (_auth.currentUser != null && _auth.currentUser!.isAnonymous) {
+        print('기존 익명 세션 발견, 로그아웃 시도...');
+        await _auth.signOut();
+        print('기존 익명 세션 로그아웃 완료');
+      }
+
+      // 새 익명 로그인 시도
       UserCredential userCredential = await _auth.signInAnonymously();
+      print('익명 로그인 성공: ${userCredential.user?.uid}');
 
       // 게스트 사용자 정보도 Firestore에 저장
-      await _saveUserToFirestore(userCredential.user, isGuest: true);
+      try {
+        await _saveUserToFirestore(userCredential.user, isGuest: true);
+        print('게스트 사용자 정보 저장 완료');
+      } catch (e) {
+        print('Firestore 저장 중 오류 발생: $e');
+        // Firestore 저장 실패해도 로그인은 성공한 것으로 처리
+      }
+
+      // 로그인 후 상태 확인
+      print('최종 로그인 상태: ${_auth.currentUser != null ? "로그인됨" : "로그인되지 않음"}');
 
       return userCredential;
     } on FirebaseAuthException catch (e) {
+      print('익명 로그인 실패: ${e.code} - ${e.message}');
       throw _handleAuthException(e);
+    } catch (e) {
+      print('게스트 로그인 중 예상치 못한 오류: $e');
+      throw Exception('게스트 로그인 중 오류가 발생했습니다: $e');
     }
   }
 
@@ -115,15 +138,20 @@ class FirebaseService {
       {bool isGuest = false, String? displayName}) async {
     if (user == null) return;
 
-    await _firestore.collection('users').doc(user.uid).set({
-      'uid': user.uid,
-      'email': user.email ?? '',
-      'displayName': displayName ?? user.displayName ?? '',
-      'photoURL': user.photoURL ?? '',
-      'isGuest': isGuest,
-      'lastLogin': FieldValue.serverTimestamp(),
-      'createdAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    try {
+      await _firestore.collection('users').doc(user.uid).set({
+        'uid': user.uid,
+        'email': user.email ?? '',
+        'displayName': displayName ?? user.displayName ?? '',
+        'photoURL': user.photoURL ?? '',
+        'isGuest': isGuest,
+        'lastLogin': FieldValue.serverTimestamp(),
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      print('Firestore에 사용자 정보 저장 중 오류: $e');
+      // 사용자 정보 저장 실패는 로그인 자체를 실패시키지 않도록 함
+    }
   }
 
   // Firebase 인증 예외 처리
@@ -142,7 +170,8 @@ class FirebaseService {
       case 'weak-password':
         return Exception('비밀번호가 너무 약합니다.');
       case 'operation-not-allowed':
-        return Exception('이 작업은 허용되지 않습니다.');
+        return Exception(
+            '이 작업은 허용되지 않습니다. Firebase 콘솔에서 익명 로그인이 활성화되어 있는지 확인해주세요.');
       default:
         return Exception('로그인 중 오류가 발생했습니다: ${e.message}');
     }

@@ -28,77 +28,103 @@ class _ResumeViewContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = Provider.of<ResumeController>(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('이력서 작성'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Colors.white,
-        actions: [
-          if (controller.isLoadingFromServer)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2,
+    return Theme(
+      data: Theme.of(context).copyWith(
+        scaffoldBackgroundColor: Colors.white,
+        canvasColor: Colors.white,
+        colorScheme: Theme.of(context).colorScheme.copyWith(
+              background: Colors.white,
+              surface: Colors.white,
+              surfaceTint: const Color(0x00FFFFFF),
+            ),
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          title: const Text('이력서 작성'),
+          backgroundColor: Colors.deepPurple,
+          elevation: 0,
+          foregroundColor: Colors.white,
+          actions: [
+            if (controller.isLoadingFromServer)
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
+        body: controller.isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _buildBody(context, controller),
       ),
-      body: controller.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _buildBody(context, controller),
     );
   }
 
   Widget _buildBody(BuildContext context, ResumeController controller) {
     return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Colors.blue.shade50,
-            Colors.white,
-          ],
-        ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
       ),
       child: SingleChildScrollView(
-        child: Center(
-          child: Container(
-            margin: const EdgeInsets.all(20),
-            constraints: const BoxConstraints(
-                maxWidth: 1200), // 중앙 위치 고정 및 최대 너비 설정(1200px로 확장)
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 왼쪽 여백 (화면의 1/6)
-                Expanded(flex: 1, child: Container()),
+        padding: EdgeInsets.zero,
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+          ),
+          child: Center(
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+              ),
+              margin: EdgeInsets.all(20),
+              constraints: const BoxConstraints(
+                  maxWidth: 1200), // 중앙 위치 고정 및 최대 너비 설정(1200px로 확장)
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 왼쪽 여백 (화면의 1/6)
+                  Expanded(
+                      flex: 1,
+                      child: Container(
+                        color: Colors.white,
+                      )),
 
-                // 중앙 내용 (화면의 2/3)
-                Expanded(
-                  flex: 4,
-                  child: Column(
-                    children: [
-                      // 헤더 섹션
-                      _buildHeaderSection(context),
+                  // 중앙 내용 (화면의 2/3)
+                  Expanded(
+                    flex: 4,
+                    child: Container(
+                      color: Colors.white,
+                      child: Column(
+                        children: [
+                          // 헤더 섹션
+                          _buildHeaderSection(context),
 
-                      // 오류 메시지 (있는 경우)
-                      if (controller.error != null)
-                        _buildErrorBanner(context, controller.error!),
+                          // 오류 메시지 (있는 경우)
+                          if (controller.error != null)
+                            _buildErrorBanner(context, controller.error!),
 
-                      // 통합 입력 폼
-                      _buildResumeFormCard(context, controller),
-                    ],
+                          // 통합 입력 폼
+                          _buildResumeFormCard(context, controller),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
 
-                // 오른쪽 여백 (화면의 1/6)
-                Expanded(flex: 1, child: Container()),
-              ],
+                  // 오른쪽 여백 (화면의 1/6)
+                  Expanded(
+                      flex: 1,
+                      child: Container(
+                        color: Colors.white,
+                      )),
+                ],
+              ),
             ),
           ),
         ),
@@ -165,6 +191,7 @@ class _ResumeViewContent extends StatelessWidget {
   Widget _buildResumeFormCard(
       BuildContext context, ResumeController controller) {
     return Card(
+      color: Colors.white,
       elevation: 4,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
@@ -200,8 +227,10 @@ class _ResumeViewContent extends StatelessWidget {
                   icon: const Icon(Icons.send),
                   label: const Text('제출하기'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    foregroundColor: Colors.white,
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.deepPurple,
+                    elevation: 1,
+                    side: BorderSide(color: Colors.deepPurple),
                     padding: const EdgeInsets.symmetric(
                         horizontal: 32, vertical: 16),
                     textStyle: const TextStyle(
@@ -222,6 +251,7 @@ class _ResumeViewContent extends StatelessWidget {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
+          backgroundColor: Colors.white,
           title: Row(
             children: [
               Icon(Icons.check_circle, color: Colors.green, size: 28),
@@ -260,8 +290,10 @@ class _ResumeViewContent extends StatelessWidget {
                 _processSubmission(context, controller);
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                foregroundColor: Colors.white,
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.deepPurple,
+                elevation: 1,
+                side: BorderSide(color: Colors.deepPurple),
               ),
               child: const Text('확인'),
             ),
@@ -372,6 +404,7 @@ class _ResumeViewContent extends StatelessWidget {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
+          backgroundColor: Colors.white,
           title: Row(
             children: [
               Icon(Icons.videocam,
@@ -404,8 +437,10 @@ class _ResumeViewContent extends StatelessWidget {
               icon: const Icon(Icons.play_arrow),
               label: const Text('면접 시작'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                foregroundColor: Colors.white,
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.deepPurple,
+                elevation: 1,
+                side: BorderSide(color: Colors.deepPurple),
               ),
             ),
           ],
