@@ -431,9 +431,16 @@ class _LoginFormState extends State<LoginForm> {
     return SizedBox(
       width: double.infinity,
       child: OutlinedButton.icon(
-        icon: Image.network(
-          'https://cdn-icons-png.flaticon.com/512/2991/2991148.png',
+        icon: Image.asset(
+          'assets/images/google_logo.png',
           height: 24,
+          errorBuilder: (context, error, stackTrace) {
+            return const Icon(
+              Icons.login,
+              size: 24,
+              color: Colors.deepPurple,
+            );
+          },
         ),
         label: Text(
           'Google로 로그인',

@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class FirebaseService {
   // Firebase Auth 인스턴스
@@ -9,10 +10,19 @@ class FirebaseService {
   // Firestore 인스턴스
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Google Sign In 인스턴스
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  // Google Sign In 인스턴스 - 웹용 설정 추가
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    // 웹에서 사용할 때만 스코프와 클라이언트 ID 추가
+    scopes: [
+      'email',
+      'profile',
+    ],
+    clientId: kIsWeb
+        ? '97108639991-or1342sfq5sjh72cccvrf6224oosrpe2.apps.googleusercontent.com'
+        : null,
+  );
 
-  // 현재 로그인한 사용자 가져오  기
+  // 현재 로그인한 사용자 가져오기
   User? get currentUser => _auth.currentUser;
 
   // 인증 상태 변화 감지 스트림
@@ -57,36 +67,113 @@ class FirebaseService {
   // Google 계정으로 로그인
   Future<UserCredential> signInWithGoogle() async {
     try {
-      // Google 로그인 과정 시작
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      print('Google 로그인 시도 중...');
 
-      if (googleUser == null) {
-        throw Exception('Google 로그인이 취소되었습니다.');
+      if (kIsWeb) {
+        print('웹 환경용 Google 로그인 사용');
+
+        // Google OAuth 제공자 설정
+        GoogleAuthProvider googleProvider = GoogleAuthProvider();
+
+        // 필요한 스코프 추가
+        googleProvider.addScope('email');
+        googleProvider.addScope('profile');
+
+        // 로그인 UI 언어 설정
+        googleProvider
+            .setCustomParameters({'locale': 'ko', 'prompt': 'select_account'});
+
+        try {
+          // 팝업 방식 사용 (권장)
+          print('팝업 방식으로 Google 로그인 시도');
+          final userCredential = await _auth.signInWithPopup(googleProvider);
+          print('Google 팝업 로그인 성공');
+
+          // 사용자 정보 처리
+          await _processUserLogin(userCredential);
+          return userCredential;
+        } catch (popupError) {
+          print('팝업 로그인 실패, 오류: $popupError');
+
+          // 팝업이 차단되었거나 실패한 경우 리디렉션 방식으로 시도
+          print('리디렉션 방식으로 전환');
+
+          // 기존 리디렉션 결과 확인 (이전에 리디렉션된 경우)
+          try {
+            final userCredential = await _auth.getRedirectResult();
+            if (userCredential.user != null) {
+              print('기존 리디렉션 로그인 결과 사용 (사용자 있음)');
+              await _processUserLogin(userCredential);
+              return userCredential;
+            }
+          } catch (redirectResultError) {
+            print('기존 리디렉션 결과 없음: $redirectResultError');
+          }
+
+          // 리디렉션 시작
+          print('새 Google 리디렉션 로그인 시작');
+          await _auth.signInWithRedirect(googleProvider);
+
+          // 리디렉션 후에는 페이지가 다시 로드되므로 여기서 오류 발생
+          throw Exception('Google 계정으로 로그인 진행 중입니다. 잠시만 기다려주세요...');
+        }
+      } else {
+        // 모바일/데스크톱 앱에서는 기존 방식 사용
+        print('모바일/데스크톱 환경용 Google 로그인 사용');
+
+        // Google 로그인 프로세스 시작
+        final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+
+        if (googleUser == null) {
+          throw Exception('Google 로그인이 취소되었습니다.');
+        }
+
+        // 인증 정보 가져오기
+        final GoogleSignInAuthentication googleAuth =
+            await googleUser.authentication;
+
+        // Firebase 인증 정보 생성
+        final credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+
+        // Firebase에 로그인
+        final userCredential = await _auth.signInWithCredential(credential);
+
+        // 사용자 정보 처리
+        await _processUserLogin(userCredential);
+        return userCredential;
       }
-
-      // 인증 정보 가져오기
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-
-      // Firebase 인증 정보 생성
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      // Firebase에 로그인
-      UserCredential userCredential = await _auth.signInWithCredential(
-        credential,
-      );
-
-      // 신규 사용자인 경우 Firestore에 정보 저장
-      if (userCredential.additionalUserInfo?.isNewUser ?? false) {
-        await _saveUserToFirestore(userCredential.user);
-      }
-
-      return userCredential;
     } catch (e) {
+      print('Google 로그인 오류: $e');
       throw Exception('Google 로그인 중 오류가 발생했습니다: $e');
+    }
+  }
+
+  // 로그인 성공 후 사용자 정보 처리
+  Future<void> _processUserLogin(UserCredential userCredential) async {
+    if (userCredential.user == null) return;
+
+    print('로그인 성공: ${userCredential.user!.uid}');
+
+    // 신규 사용자인 경우 Firestore에 정보 저장
+    if (userCredential.additionalUserInfo?.isNewUser ?? false) {
+      await _saveUserToFirestore(userCredential.user);
+      print('신규 사용자 정보 저장 완료');
+    } else {
+      print('기존 사용자 로그인');
+      // 마지막 로그인 시간 업데이트
+      try {
+        await _firestore
+            .collection('users')
+            .doc(userCredential.user!.uid)
+            .update({
+          'lastLogin': FieldValue.serverTimestamp(),
+        });
+      } catch (e) {
+        print('최근 로그인 시간 업데이트 오류: $e');
+      }
     }
   }
 
