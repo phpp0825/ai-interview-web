@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import '../services/firebase_service.dart';
-import '../widgets/dashboard/dashboard_view.dart';
+import '../widgets/dashboard/resume_widget.dart';
+import '../widgets/dashboard/interview_widget.dart';
+import '../widgets/dashboard/report_widget.dart';
 import 'resume_view.dart';
 import 'interview_view.dart';
 import 'report_view.dart';
@@ -22,6 +24,9 @@ class _HomePageState extends State<HomePage> {
       listen: false,
     );
     final user = Provider.of<User?>(context);
+
+    // 테마 색상
+    final primaryColor = Theme.of(context).colorScheme.primary;
 
     return Theme(
       data: Theme.of(context).copyWith(
@@ -67,13 +72,45 @@ class _HomePageState extends State<HomePage> {
         ),
         body: Container(
           color: Colors.white,
-          child: const SafeArea(child: DashboardView()),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Welcome to the Ainterview !',
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 24),
+                  Expanded(
+                    child: ListView(
+                      padding: EdgeInsets.zero,
+                      children: [
+                        // 이력서 작성 위젯
+                        ResumeWidget(color: primaryColor),
+
+                        // 면접 연습 위젯
+                        InterviewWidget(color: primaryColor),
+
+                        // 면접 보고서 위젯
+                        ReportWidget(color: primaryColor),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
   }
 
   Widget _buildNavMenu(BuildContext context) {
+    // primaryColor 가져오기
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
     return Row(
       children: [
         TextButton(
@@ -124,9 +161,9 @@ class _HomePageState extends State<HomePage> {
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
-                        foregroundColor: Colors.deepPurple,
+                        foregroundColor: primaryColor,
                         elevation: 1,
-                        side: BorderSide(color: Colors.deepPurple),
+                        side: BorderSide(color: primaryColor),
                       ),
                       child: const Text('이력서 작성하기'),
                     ),

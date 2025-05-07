@@ -362,14 +362,25 @@ class _InterviewViewState extends State<InterviewView> {
           width: 2,
         ),
       ),
-      child: const Center(
-        child: Text(
-          '카메라 영상이 여기에 표시됩니다',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 16,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Image.asset(
+            'assets/images/camera_image.png',
+            height: 150,
+            color: Colors.white.withOpacity(0.9),
+            fit: BoxFit.contain,
           ),
-        ),
+          const SizedBox(height: 16),
+          const Text(
+            '카메라 영상이 여기에 표시됩니다',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }
