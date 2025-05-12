@@ -1,16 +1,10 @@
 import 'package:flutter/material.dart';
 import '../models/resume_model.dart';
 import '../services/resume_service.dart';
-import '../services/firebase_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class ResumeController extends ChangeNotifier {
   // 의존성
   final ResumeService _resumeService = ResumeService();
-  final FirebaseService _firebaseService = FirebaseService();
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   // 모델
   final ResumeModel _model = ResumeModel();
@@ -94,16 +88,6 @@ class ResumeController extends ChangeNotifier {
   // 초기화
   ResumeController() {
     // 이력서 생성 모드만 사용하므로 초기화 시 기존 데이터를 로드하지 않음
-  }
-
-  // 이력서 초기화 - 서버에서 데이터 조회 시도 (사용하지 않음)
-  Future<void> _initializeResume() async {
-    // 사용하지 않음
-  }
-
-  // 서버에서 이력서 불러오기 (사용하지 않음)
-  Future<void> loadResumeFromServer(String userId) async {
-    // 사용하지 않음
   }
 
   // 필드 값 업데이트
@@ -239,15 +223,11 @@ class ResumeController extends ChangeNotifier {
   // 이력서 저장
   Future<bool> saveResume() async {
     try {
-      final user = _auth.currentUser;
-      if (user == null) {
-        throw Exception('사용자가 로그인되어 있지 않습니다.');
-      }
-
-      // 이력서 데이터를 Firestore에 저장하는 서비스 메서드 호출
+      // 이력서 데이터를 서비스를 통해 Firestore에 저장
       return await _resumeService.saveResumeToFirestore(_model);
     } catch (e) {
       print('이력서 저장 중 오류 발생: $e');
+      _setError('이력서 저장에 실패했습니다: $e');
       return false;
     }
   }

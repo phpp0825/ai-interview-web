@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
-import '../services/firebase_service.dart';
+import '../services/auth_service.dart';
 import '../controllers/home_controller.dart';
 import '../widgets/dashboard/resume_widget.dart';
 import '../widgets/dashboard/interview_widget.dart';
@@ -35,13 +35,15 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 컨트롤러 및 필요한 서비스 프로바이더 설정
-    final firebaseService =
-        Provider.of<FirebaseService>(context, listen: false);
-
-    // 컨트롤러 생성
+    // 화면 초기화 시 홈 컨트롤러 생성
     return ChangeNotifierProvider(
-      create: (_) => HomeController(firebaseService),
+      create: (context) {
+        // 앱 상태 관리 컨트롤러 생성
+        final authService = Provider.of<AuthService>(context, listen: false);
+
+        // 홈 컨트롤러 생성 및 반환
+        return HomeController(authService);
+      },
       child: const HomePageContent(),
     );
   }
@@ -92,18 +94,18 @@ class HomePageContent extends StatelessWidget {
   // 로그아웃 처리
   void _handleLogout(BuildContext context, HomeController controller) async {
     try {
-      final success = await controller.signOut();
-      if (success && context.mounted) {
+      await controller.signOut();
+
+      // 로그아웃 성공 시 로그인 화면으로 이동
+      if (context.mounted) {
         Navigator.of(context).pushReplacementNamed('/');
-      } else if (context.mounted && controller.error != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(controller.error!)),
-        );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('로그아웃 중 오류가 발생했습니다: $e')),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('로그아웃 중 오류가 발생했습니다: $e')),
+        );
+      }
     }
   }
 

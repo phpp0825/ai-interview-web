@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import '../../services/firebase_service.dart';
+import '../../services/auth_service.dart';
 
 class RegisterForm extends StatefulWidget {
   const RegisterForm({super.key});
@@ -44,34 +44,39 @@ class _RegisterFormState extends State<RegisterForm> {
   }
 
   // 회원가입 처리
-  Future<void> _signUp() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      // Firebase 서비스 가져오기
-      final firebaseService =
-          Provider.of<FirebaseService>(context, listen: false);
-
-      // 회원가입 진행
-      await firebaseService.signUpWithEmail(
-        _emailController.text.trim(),
-        _passwordController.text.trim(),
-        name: _nameController.text.trim(),
-      );
-    } catch (e) {
+  Future<void> _submitForm() async {
+    if (_formKey.currentState!.validate()) {
       setState(() {
-        _errorMessage = e.toString();
+        _isLoading = true;
       });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+
+      try {
+        final authService = Provider.of<AuthService>(context, listen: false);
+
+        // Firebase 인증으로 회원가입
+        await authService.signUpWithEmail(
+          _emailController.text.trim(),
+          _passwordController.text,
+          name: _nameController.text.trim(),
+        );
+
+        // 회원가입 성공 후 홈 화면으로 이동
+        if (!mounted) return;
+        Navigator.of(context).pushReplacementNamed('/home');
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('회원가입 실패: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
       }
     }
   }
@@ -177,7 +182,7 @@ class _RegisterFormState extends State<RegisterForm> {
               });
             },
             textInputAction: TextInputAction.done,
-            onFieldSubmitted: (_) => _signUp(),
+            onFieldSubmitted: (_) => _submitForm(),
             validator: (value) {
               if (value?.isEmpty ?? true) {
                 return '비밀번호 확인을 입력해주세요.';
@@ -366,7 +371,7 @@ class _RegisterFormState extends State<RegisterForm> {
         ],
       ),
       child: ElevatedButton(
-        onPressed: _isLoading ? null : _signUp,
+        onPressed: _isLoading ? null : _submitForm,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.deepPurple,
           foregroundColor: Colors.white,

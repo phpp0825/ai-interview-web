@@ -3,7 +3,7 @@ import 'package:responsive_framework/responsive_framework.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
-import 'services/firebase_service.dart';
+import 'services/auth_service.dart';
 import 'views/login_view.dart';
 import 'views/home_view.dart';
 import 'views/landing_view.dart';
@@ -31,9 +31,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        Provider<FirebaseService>(create: (_) => FirebaseService()),
+        Provider<AuthService>(create: (_) => AuthService()),
         StreamProvider<User?>(
-          create: (context) => Provider.of<FirebaseService>(
+          create: (context) => Provider.of<AuthService>(
             context,
             listen: false,
           ).authStateChanges,

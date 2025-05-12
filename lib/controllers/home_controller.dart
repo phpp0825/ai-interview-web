@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../services/firebase_service.dart';
+import '../services/auth_service.dart';
 import '../services/resume_service.dart';
 import '../views/resume_view.dart';
 import '../views/interview_view.dart';
 import '../views/report_view.dart';
 
+/// 홈 화면 컨트롤러
+///
+/// 홈 화면에서 필요한 데이터 관리 및 비즈니스 로직을 처리합니다.
 class HomeController extends ChangeNotifier {
-  // 서비스 인스턴스
-  final FirebaseService _firebaseService;
+  // 의존성
+  final AuthService _authService;
   final ResumeService _resumeService = ResumeService();
 
   // 상태 변수
@@ -18,22 +21,20 @@ class HomeController extends ChangeNotifier {
   // Getters
   bool get isLoading => _isLoading;
   String? get error => _error;
-  User? get currentUser => _firebaseService.currentUser;
+  User? get currentUser => _authService.currentUser;
 
   // 생성자
-  HomeController(this._firebaseService);
+  HomeController(this._authService);
 
-  // 로그아웃 처리
-  Future<bool> signOut() async {
+  // 로그아웃 메서드
+  Future<void> signOut() async {
     try {
       _setLoading(true);
-      await _firebaseService.signOut();
-      _setLoading(false);
-      return true;
+      await _authService.signOut();
     } catch (e) {
       _setError('로그아웃 중 오류가 발생했습니다: $e');
+    } finally {
       _setLoading(false);
-      return false;
     }
   }
 

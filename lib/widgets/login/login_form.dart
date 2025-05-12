@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import '../../services/firebase_service.dart';
+import '../../services/auth_service.dart';
 import '../../views/home_view.dart';
 
 class LoginForm extends StatefulWidget {
@@ -27,88 +27,73 @@ class _LoginFormState extends State<LoginForm> {
   }
 
   // 이메일/비밀번호 로그인 처리
-  Future<void> _signInWithEmail() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      final firebaseService = Provider.of<FirebaseService>(
-        context,
-        listen: false,
-      );
-
-      await firebaseService.signInWithEmail(
-        _emailController.text.trim(),
-        _passwordController.text.trim(),
-      );
-
-      // 로그인 후 상태 확인
-      if (firebaseService.currentUser != null) {
-        print('이메일 로그인 성공: ${firebaseService.currentUser!.uid}');
-
-        // 명시적 라우트를 사용하여 홈 화면으로 이동
-        if (mounted) {
-          Navigator.pushReplacementNamed(context, '/home');
-        }
-      }
-    } catch (e) {
+  Future<void> _submitForm() async {
+    if (_formKey.currentState!.validate()) {
       setState(() {
-        _errorMessage = e.toString();
+        _isLoading = true;
+        _errorMessage = null;
       });
-    } finally {
-      if (mounted) {
+
+      try {
+        // 로그인 처리
+        final authService = Provider.of<AuthService>(
+          context,
+          listen: false,
+        );
+
+        await authService.signInWithEmail(
+          _emailController.text.trim(),
+          _passwordController.text.trim(),
+        );
+
+        // 로그인 성공 처리
+        if (authService.currentUser != null) {
+          print('이메일 로그인 성공: ${authService.currentUser!.uid}');
+
+          if (!mounted) return;
+          Navigator.of(context).pushReplacementNamed('/home');
+        }
+      } catch (e) {
         setState(() {
-          _isLoading = false;
+          _errorMessage = e.toString();
         });
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
       }
     }
   }
 
   // 게스트 로그인 처리
-  Future<void> _signInAnonymously() async {
+  Future<void> _signInAsGuest() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      print('게스트 로그인 버튼 클릭');
-      final firebaseService = Provider.of<FirebaseService>(
+      // 게스트 로그인
+      final authService = Provider.of<AuthService>(
         context,
         listen: false,
       );
 
-      await firebaseService.signInAnonymously();
-      print('게스트 로그인 성공');
+      await authService.signInAnonymously();
 
-      // 로그인 후 상태 확인
-      if (firebaseService.currentUser != null) {
-        print('게스트 로그인 성공: ${firebaseService.currentUser!.uid}');
+      // 로그인 성공 처리
+      if (authService.currentUser != null) {
+        print('게스트 로그인 성공: ${authService.currentUser!.uid}');
 
-        // 명시적 라우트를 사용하여 홈 화면으로 이동
-        if (mounted) {
-          Navigator.pushReplacementNamed(context, '/home');
-        }
-      } else {
-        print('로그인 후에도 유저가 null입니다.');
-        setState(() {
-          _errorMessage = '로그인에 성공했으나 사용자 정보를 가져올 수 없습니다.';
-        });
+        if (!mounted) return;
+        Navigator.of(context).pushReplacementNamed('/home');
       }
     } catch (e) {
-      print('게스트 로그인 실패: $e');
       setState(() {
         _errorMessage = e.toString();
       });
-
-      // 실패 후 추가 디버깅
-      final user =
-          Provider.of<FirebaseService>(context, listen: false).currentUser;
-      print('현재 유저 상태: ${user != null ? "로그인됨 - ${user.uid}" : "로그인되지 않음"}');
     } finally {
       if (mounted) {
         setState(() {
@@ -118,7 +103,20 @@ class _LoginFormState extends State<LoginForm> {
     }
   }
 
-  // Google 로그인 처리
+  // 자동 로그인 확인
+  void _checkExistingUser() {
+    final currentUser =
+        Provider.of<AuthService>(context, listen: false).currentUser;
+
+    if (currentUser != null) {
+      print('자동 로그인: ${currentUser.uid}');
+      Future.microtask(() {
+        Navigator.of(context).pushReplacementNamed('/home');
+      });
+    }
+  }
+
+  // 구글 로그인 처리
   Future<void> _signInWithGoogle() async {
     setState(() {
       _isLoading = true;
@@ -126,21 +124,20 @@ class _LoginFormState extends State<LoginForm> {
     });
 
     try {
-      final firebaseService = Provider.of<FirebaseService>(
+      // 구글 로그인
+      final authService = Provider.of<AuthService>(
         context,
         listen: false,
       );
 
-      await firebaseService.signInWithGoogle();
+      await authService.signInWithGoogle();
 
-      // 로그인 후 상태 확인
-      if (firebaseService.currentUser != null) {
-        print('구글 로그인 성공: ${firebaseService.currentUser!.uid}');
+      // 로그인 성공 처리
+      if (authService.currentUser != null) {
+        print('구글 로그인 성공: ${authService.currentUser!.uid}');
 
-        // 명시적 라우트를 사용하여 홈 화면으로 이동
-        if (mounted) {
-          Navigator.pushReplacementNamed(context, '/home');
-        }
+        if (!mounted) return;
+        Navigator.of(context).pushReplacementNamed('/home');
       }
     } catch (e) {
       setState(() {
@@ -343,7 +340,7 @@ class _LoginFormState extends State<LoginForm> {
         ],
       ),
       child: ElevatedButton(
-        onPressed: _isLoading ? null : _signInWithEmail,
+        onPressed: _isLoading ? null : _submitForm,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.deepPurple,
           foregroundColor: Colors.white,
@@ -384,7 +381,7 @@ class _LoginFormState extends State<LoginForm> {
     return SizedBox(
       width: double.infinity,
       child: OutlinedButton(
-        onPressed: _isLoading ? null : _signInAnonymously,
+        onPressed: _isLoading ? null : _signInAsGuest,
         style: OutlinedButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 20),
           foregroundColor: Colors.grey[700],
