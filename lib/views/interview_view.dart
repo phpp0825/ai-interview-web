@@ -12,7 +12,7 @@ class InterviewView extends StatelessWidget {
   Widget build(BuildContext context) {
     // 컨트롤러 생성 및 제공
     return ChangeNotifierProvider(
-      create: (_) => InterviewController(resumeData: resumeData),
+      create: (_) => InterviewController(initialResume: resumeData),
       child: const InterviewViewContent(),
     );
   }
@@ -37,38 +37,47 @@ class InterviewViewContent extends StatelessWidget {
   AppBar _buildAppBar(BuildContext context, InterviewController controller) {
     return AppBar(
       title: Text(controller.isInterviewStarted ? '면접 진행 중' : '면접 실행'),
-      backgroundColor: Colors.deepPurple,
-      elevation: 0,
-      foregroundColor: Colors.white,
+        backgroundColor: Colors.deepPurple,
+        elevation: 0,
+        foregroundColor: Colors.white,
+      actions: [
+        // 이력서 선택 버튼
+        if (!controller.isInterviewStarted)
+          IconButton(
+            icon: const Icon(Icons.description),
+            tooltip: '이력서 선택',
+            onPressed: () => controller.showResumeSelectionDialog(context),
+          ),
+      ],
     );
   }
 
   // 본문 빌드
   Widget _buildBody(BuildContext context, InterviewController controller) {
     return SingleChildScrollView(
-      child: Container(
-        color: Colors.white,
-        child: Center(
-          child: Container(
-            margin: const EdgeInsets.all(20),
-            constraints: const BoxConstraints(maxWidth: 1200), // 최대 너비 설정
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 왼쪽 여백 (화면의 1/6)
-                Expanded(flex: 1, child: Container()),
+        child: Container(
+          color: Colors.white,
+          child: Center(
+            child: Container(
+              margin: const EdgeInsets.all(20),
+              constraints: const BoxConstraints(maxWidth: 1200), // 최대 너비 설정
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 왼쪽 여백 (화면의 1/6)
+                  Expanded(flex: 1, child: Container()),
 
-                // 중앙 내용 (화면의 2/3)
-                Expanded(
-                  flex: 4,
+                  // 중앙 내용 (화면의 2/3)
+                  Expanded(
+                    flex: 4,
                   child: controller.isInterviewStarted
                       ? _buildInterviewScreen(context, controller)
                       : _buildStartScreen(context, controller),
-                ),
+                  ),
 
-                // 오른쪽 여백 (화면의 1/6)
-                Expanded(flex: 1, child: Container()),
-              ],
+                  // 오른쪽 여백 (화면의 1/6)
+                  Expanded(flex: 1, child: Container()),
+                ],
             ),
           ),
         ),
@@ -79,6 +88,9 @@ class InterviewViewContent extends StatelessWidget {
   // 면접 시작 화면
   Widget _buildStartScreen(
       BuildContext context, InterviewController controller) {
+    // 선택된 이력서가 있으면 정보 표시
+    final selectedResume = controller.selectedResume;
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -110,6 +122,67 @@ class InterviewViewContent extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 40),
+
+        // 선택된 이력서 정보 표시 (있는 경우)
+        if (selectedResume != null)
+          Container(
+            padding: const EdgeInsets.all(16),
+            margin: const EdgeInsets.only(bottom: 24),
+            decoration: BoxDecoration(
+              color: Colors.deepPurple.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.deepPurple.shade100),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.description, color: Colors.deepPurple),
+                    const SizedBox(width: 8),
+                    Text(
+                      '선택된 이력서: ${selectedResume.position}',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.deepPurple,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '분야: ${selectedResume.field} | 경력: ${selectedResume.experience}',
+                  style: const TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '면접 유형: ${selectedResume.interviewTypes.join(", ")}',
+                  style: const TextStyle(fontSize: 14),
+                ),
+              ],
+            ),
+          ),
+
+        // 이력서 선택 버튼
+        if (selectedResume == null)
+          OutlinedButton.icon(
+            onPressed: () => controller.showResumeSelectionDialog(context),
+            icon: const Icon(Icons.description),
+            label: const Text('이력서 선택하기'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.deepPurple,
+              side: const BorderSide(color: Colors.deepPurple),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 12,
+              ),
+            ),
+          ),
+
+        const SizedBox(height: 20),
+
+        // 면접 시작 버튼
         ElevatedButton.icon(
           onPressed: () => controller.startInterview(context),
           icon: const Icon(Icons.play_arrow),
@@ -199,8 +272,8 @@ class InterviewViewContent extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
             const Text(
               '현재 질문',
               style: TextStyle(
@@ -214,7 +287,7 @@ class InterviewViewContent extends StatelessWidget {
                 ? const Center(
                     child: Padding(
                       padding: EdgeInsets.all(40),
-                      child: CircularProgressIndicator(),
+                    child: CircularProgressIndicator(),
                     ),
                   )
                 : Container(
@@ -226,7 +299,7 @@ class InterviewViewContent extends StatelessWidget {
                     ),
                     child: Text(
                       controller.currentQuestion,
-                      style: const TextStyle(
+                        style: const TextStyle(
                         fontSize: 20,
                         height: 1.5,
                       ),
@@ -234,36 +307,36 @@ class InterviewViewContent extends StatelessWidget {
                   ),
             const SizedBox(height: 24),
             Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ElevatedButton.icon(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        ElevatedButton.icon(
                   onPressed: controller.generateNextQuestion,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('다음 질문'),
-                  style: ElevatedButton.styleFrom(
+          icon: const Icon(Icons.refresh),
+          label: const Text('다음 질문'),
+          style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.deepPurple,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                OutlinedButton.icon(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24,
+              vertical: 12,
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        OutlinedButton.icon(
                   onPressed: controller.endInterview,
                   icon: const Icon(Icons.stop),
-                  label: const Text('면접 종료'),
-                  style: OutlinedButton.styleFrom(
+          label: const Text('면접 종료'),
+          style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.deepPurple,
                     side: const BorderSide(color: Colors.deepPurple),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
-                    ),
-                  ),
-                ),
-              ],
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24,
+              vertical: 12,
+            ),
+          ),
+        ),
+      ],
             ),
           ],
         ),

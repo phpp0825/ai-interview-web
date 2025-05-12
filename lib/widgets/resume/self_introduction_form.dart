@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../controllers/resume_controller.dart';
 import '../common/section_title.dart';
 
-class SelfIntroductionForm extends StatelessWidget {
+class SelfIntroductionForm extends StatefulWidget {
   final ResumeController controller;
 
   const SelfIntroductionForm({
@@ -11,9 +11,52 @@ class SelfIntroductionForm extends StatelessWidget {
   }) : super(key: key);
 
   @override
+  State<SelfIntroductionForm> createState() => _SelfIntroductionFormState();
+}
+
+class _SelfIntroductionFormState extends State<SelfIntroductionForm> {
+  // TextEditingController 객체 생성
+  late TextEditingController _motivationController;
+  late TextEditingController _strengthController;
+
+  @override
+  void initState() {
+    super.initState();
+    // 컨트롤러 초기화
+    _motivationController = TextEditingController(
+        text: widget.controller.selfIntroductionMotivation ?? '');
+    _strengthController = TextEditingController(
+        text: widget.controller.selfIntroductionStrength ?? '');
+  }
+
+  @override
+  void didUpdateWidget(SelfIntroductionForm oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 위젯이 업데이트될 때 컨트롤러 업데이트 (필요한 경우만)
+    if (oldWidget.controller.selfIntroductionMotivation !=
+        widget.controller.selfIntroductionMotivation) {
+      _motivationController.text =
+          widget.controller.selfIntroductionMotivation ?? '';
+    }
+    if (oldWidget.controller.selfIntroductionStrength !=
+        widget.controller.selfIntroductionStrength) {
+      _strengthController.text =
+          widget.controller.selfIntroductionStrength ?? '';
+    }
+  }
+
+  @override
+  void dispose() {
+    // 메모리 누수 방지를 위해 컨트롤러 해제
+    _motivationController.dispose();
+    _strengthController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     // 인성 면접이 선택된 경우에만 자기소개서 양식 표시
-    if (!controller.isPersonalityInterviewSelected) {
+    if (!widget.controller.isPersonalityInterviewSelected) {
       return const SizedBox.shrink();
     }
 
@@ -54,9 +97,9 @@ class SelfIntroductionForm extends StatelessWidget {
                   _buildTextArea(
                     label: '지원 동기 (선택사항, 500자 이내)',
                     hint: '해당 직무에 지원하게 된 이유와 관련 경험을 작성해주세요.',
-                    value: controller.selfIntroductionMotivation,
-                    onChanged: (value) =>
-                        controller.updateSelfIntroductionMotivation(value),
+                    controller: _motivationController,
+                    onChanged: (value) => widget.controller
+                        .updateSelfIntroductionMotivation(value),
                     maxLength: 500,
                   ),
                   const SizedBox(height: 24),
@@ -65,9 +108,9 @@ class SelfIntroductionForm extends StatelessWidget {
                   _buildTextArea(
                     label: '직무 관련 역량 (선택사항, 500자 이내)',
                     hint: '지원 직무에 필요한 역량과 관련된 본인의 경험을 작성해주세요.',
-                    value: controller.selfIntroductionStrength,
+                    controller: _strengthController,
                     onChanged: (value) =>
-                        controller.updateSelfIntroductionStrength(value),
+                        widget.controller.updateSelfIntroductionStrength(value),
                     maxLength: 500,
                   ),
                 ],
@@ -82,7 +125,7 @@ class SelfIntroductionForm extends StatelessWidget {
   Widget _buildTextArea({
     required String label,
     required String hint,
-    required String? value,
+    required TextEditingController controller,
     required Function(String) onChanged,
     required int maxLength,
   }) {
@@ -98,13 +141,11 @@ class SelfIntroductionForm extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         TextField(
-          controller: TextEditingController(text: value)
-            ..selection = TextSelection.fromPosition(
-              TextPosition(offset: value?.length ?? 0),
-            ),
+          controller: controller,
           onChanged: onChanged,
           maxLength: maxLength,
           maxLines: 5,
+          textDirection: null,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(color: Colors.grey.shade400),

@@ -160,20 +160,9 @@ class FirebaseService {
     // 신규 사용자인 경우 Firestore에 정보 저장
     if (userCredential.additionalUserInfo?.isNewUser ?? false) {
       await _saveUserToFirestore(userCredential.user);
-      print('신규 사용자 정보 저장 완료');
+      print('신규 사용자 정보 저장 기능 호출됨 (비활성화 상태)');
     } else {
       print('기존 사용자 로그인');
-      // 마지막 로그인 시간 업데이트
-      try {
-        await _firestore
-            .collection('users')
-            .doc(userCredential.user!.uid)
-            .update({
-          'lastLogin': FieldValue.serverTimestamp(),
-        });
-      } catch (e) {
-        print('최근 로그인 시간 업데이트 오류: $e');
-      }
     }
   }
 
@@ -225,20 +214,9 @@ class FirebaseService {
       {bool isGuest = false, String? displayName}) async {
     if (user == null) return;
 
-    try {
-      await _firestore.collection('users').doc(user.uid).set({
-        'uid': user.uid,
-        'email': user.email ?? '',
-        'displayName': displayName ?? user.displayName ?? '',
-        'photoURL': user.photoURL ?? '',
-        'isGuest': isGuest,
-        'lastLogin': FieldValue.serverTimestamp(),
-        'createdAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    } catch (e) {
-      print('Firestore에 사용자 정보 저장 중 오류: $e');
-      // 사용자 정보 저장 실패는 로그인 자체를 실패시키지 않도록 함
-    }
+    // Firestore에 사용자 정보 저장 로직 삭제
+    // 사용자 정보를 Firestore에 저장하지 않음
+    print('사용자 정보를 Firestore에 저장하는 기능이 비활성화되었습니다.');
   }
 
   // Firebase 인증 예외 처리

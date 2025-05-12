@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../controllers/resume_controller.dart';
 import '../common/section_title.dart';
 import '../common/custom_text_field.dart';
+import '../common/date_picker_widget.dart';
 
 class EducationForm extends StatelessWidget {
   final ResumeController controller;
@@ -10,6 +11,30 @@ class EducationForm extends StatelessWidget {
     Key? key,
     required this.controller,
   }) : super(key: key);
+
+  // 필수 정보 레이블 생성 함수
+  Widget _buildRequiredLabel(String label) {
+    return Row(
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(width: 4),
+        const Text(
+          '* 필수',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: Colors.red,
+          ),
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +46,7 @@ class EducationForm extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SectionTitle(title: '학력 정보'),
+          const SectionTitle(title: '학력 정보 (필수)'),
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(16),
@@ -41,6 +66,7 @@ class EducationForm extends StatelessWidget {
                   initialValue: controller.education.school,
                   onChanged: (value) =>
                       controller.updateEducation('school', value),
+                  isRequired: true,
                 ),
                 const SizedBox(height: 16),
 
@@ -52,12 +78,13 @@ class EducationForm extends StatelessWidget {
                   initialValue: controller.education.major,
                   onChanged: (value) =>
                       controller.updateEducation('major', value),
+                  isRequired: true,
                 ),
                 const SizedBox(height: 16),
 
                 // 학위
                 CustomDropdown<String>(
-                  label: '학위',
+                  labelWidget: _buildRequiredLabel('학위'),
                   value: controller.education.degree,
                   items: controller.degrees
                       .map((degree) => DropdownMenuItem(
@@ -77,27 +104,40 @@ class EducationForm extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: CustomTextField(
+                      child: DatePickerWidget(
                         label: '입학년월',
-                        hint: 'YYYY-MM',
                         initialValue: controller.education.startDate,
                         onChanged: (value) =>
                             controller.updateEducation('startDate', value),
+                        isRequired: true,
                       ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: CustomTextField(
+                      child: DatePickerWidget(
                         label: '졸업년월',
-                        hint: 'YYYY-MM',
                         initialValue: controller.education.endDate,
                         onChanged: (value) =>
                             controller.updateEducation('endDate', value),
+                        isRequired: true,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
+
+                // 선택 정보 구분선 추가
+                const Divider(),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8.0),
+                  child: Text(
+                    '선택 정보',
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
 
                 // 학점
                 Row(

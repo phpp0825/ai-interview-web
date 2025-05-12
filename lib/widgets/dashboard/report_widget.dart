@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../views/report_view.dart';
 
 class ReportWidget extends StatelessWidget {
   final Color color;
@@ -18,10 +17,7 @@ class ReportWidget extends StatelessWidget {
       imagePath: 'assets/images/report_image.png',
       color: color,
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const ReportView()),
-        );
+        Navigator.pushNamed(context, '/report-list');
       },
     );
   }

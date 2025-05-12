@@ -20,36 +20,44 @@ class ResumeModel {
         education = education ?? Education(),
         selfIntroduction = selfIntroduction ?? SelfIntroduction();
 
-  Map<String, dynamic> toMap() {
+  // Map 형태로 변환 (JSON 직렬화)
+  Map<String, dynamic> toJson() {
     return {
       'field': field,
       'position': position,
       'experience': experience,
       'interviewTypes': interviewTypes,
-      'certificates': certificates.map((c) => c.toMap()).toList(),
-      'education': education.toMap(),
-      'selfIntroduction': selfIntroduction.toMap(),
+      'certificates': certificates.map((c) => c.toJson()).toList(),
+      'education': education.toJson(),
+      'selfIntroduction': selfIntroduction.toJson(),
     };
   }
 
-  static ResumeModel fromMap(Map<String, dynamic> map) {
+  // 기존 호환성을 위해 toMap 메소드 유지
+  Map<String, dynamic> toMap() => toJson();
+
+  // Map에서 객체 생성 (JSON 역직렬화)
+  static ResumeModel fromJson(Map<String, dynamic> json) {
     return ResumeModel(
-      field: map['field'] ?? '웹 개발',
-      position: map['position'] ?? '백엔드 개발자',
-      experience: map['experience'] ?? '신입',
-      interviewTypes: List<String>.from(map['interviewTypes'] ?? ['직무면접']),
-      certificates: (map['certificates'] as List?)
-              ?.map((c) => Certificate.fromMap(c))
+      field: json['field'] ?? '웹 개발',
+      position: json['position'] ?? '백엔드 개발자',
+      experience: json['experience'] ?? '신입',
+      interviewTypes: List<String>.from(json['interviewTypes'] ?? ['직무면접']),
+      certificates: (json['certificates'] as List?)
+              ?.map((c) => Certificate.fromJson(c))
               .toList() ??
           [],
-      education: map['education'] != null
-          ? Education.fromMap(map['education'])
+      education: json['education'] != null
+          ? Education.fromJson(json['education'])
           : Education(),
-      selfIntroduction: map['selfIntroduction'] != null
-          ? SelfIntroduction.fromMap(map['selfIntroduction'])
+      selfIntroduction: json['selfIntroduction'] != null
+          ? SelfIntroduction.fromJson(json['selfIntroduction'])
           : SelfIntroduction(),
     );
   }
+
+  // 기존 호환성을 위해 fromMap 메소드 유지
+  static ResumeModel fromMap(Map<String, dynamic> map) => fromJson(map);
 
   bool get hasPersonalityInterview => interviewTypes.contains('인성면접');
 }
@@ -67,7 +75,8 @@ class Certificate {
     this.score = '',
   });
 
-  Map<String, dynamic> toMap() {
+  // Map 형태로 변환 (JSON 직렬화)
+  Map<String, dynamic> toJson() {
     return {
       'name': name,
       'issuer': issuer,
@@ -76,14 +85,21 @@ class Certificate {
     };
   }
 
-  static Certificate fromMap(Map<String, dynamic> map) {
+  // 기존 호환성을 위해 toMap 메소드 유지
+  Map<String, dynamic> toMap() => toJson();
+
+  // Map에서 객체 생성 (JSON 역직렬화)
+  static Certificate fromJson(Map<String, dynamic> json) {
     return Certificate(
-      name: map['name'] ?? '',
-      issuer: map['issuer'] ?? '',
-      date: map['date'] ?? '',
-      score: map['score'] ?? '',
+      name: json['name'] ?? '',
+      issuer: json['issuer'] ?? '',
+      date: json['date'] ?? '',
+      score: json['score'] ?? '',
     );
   }
+
+  // 기존 호환성을 위해 fromMap 메소드 유지
+  static Certificate fromMap(Map<String, dynamic> map) => fromJson(map);
 }
 
 class Education {
@@ -105,7 +121,8 @@ class Education {
     this.totalGpa = '4.5',
   });
 
-  Map<String, dynamic> toMap() {
+  // Map 형태로 변환 (JSON 직렬화)
+  Map<String, dynamic> toJson() {
     return {
       'school': school,
       'major': major,
@@ -117,17 +134,24 @@ class Education {
     };
   }
 
-  static Education fromMap(Map<String, dynamic> map) {
+  // 기존 호환성을 위해 toMap 메소드 유지
+  Map<String, dynamic> toMap() => toJson();
+
+  // Map에서 객체 생성 (JSON 역직렬화)
+  static Education fromJson(Map<String, dynamic> json) {
     return Education(
-      school: map['school'] ?? '',
-      major: map['major'] ?? '',
-      degree: map['degree'] ?? '학사',
-      startDate: map['startDate'] ?? '',
-      endDate: map['endDate'] ?? '',
-      gpa: map['gpa'] ?? '',
-      totalGpa: map['totalGpa'] ?? '4.5',
+      school: json['school'] ?? '',
+      major: json['major'] ?? '',
+      degree: json['degree'] ?? '학사',
+      startDate: json['startDate'] ?? '',
+      endDate: json['endDate'] ?? '',
+      gpa: json['gpa'] ?? '',
+      totalGpa: json['totalGpa'] ?? '4.5',
     );
   }
+
+  // 기존 호환성을 위해 fromMap 메소드 유지
+  static Education fromMap(Map<String, dynamic> map) => fromJson(map);
 }
 
 class SelfIntroduction {
@@ -139,17 +163,27 @@ class SelfIntroduction {
     this.strength,
   });
 
-  Map<String, dynamic> toMap() {
+  // Map 형태로 변환 (JSON 직렬화)
+  Map<String, dynamic> toJson() {
     return {
       'motivation': motivation,
       'strength': strength,
     };
   }
 
-  factory SelfIntroduction.fromMap(Map<String, dynamic> map) {
+  // 기존 호환성을 위해 toMap 메소드 유지
+  Map<String, dynamic> toMap() => toJson();
+
+  // Map에서 객체 생성 (JSON 역직렬화)
+  factory SelfIntroduction.fromJson(Map<String, dynamic> json) {
     return SelfIntroduction(
-      motivation: map['motivation'],
-      strength: map['strength'],
+      motivation: json['motivation'],
+      strength: json['strength'],
     );
+  }
+
+  // 기존 호환성을 위해 fromMap 메소드 유지
+  factory SelfIntroduction.fromMap(Map<String, dynamic> map) {
+    return SelfIntroduction.fromJson(map);
   }
 }

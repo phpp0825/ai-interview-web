@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import '../models/resume_model.dart';
 import '../services/resume_service.dart';
 import '../services/firebase_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ResumeController extends ChangeNotifier {
   // 의존성
   final ResumeService _resumeService = ResumeService();
   final FirebaseService _firebaseService = FirebaseService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   // 모델
   final ResumeModel _model = ResumeModel();
@@ -89,45 +93,17 @@ class ResumeController extends ChangeNotifier {
 
   // 초기화
   ResumeController() {
-    _initializeResume();
+    // 이력서 생성 모드만 사용하므로 초기화 시 기존 데이터를 로드하지 않음
   }
 
-  // 이력서 초기화 - 서버에서 데이터 조회 시도
+  // 이력서 초기화 - 서버에서 데이터 조회 시도 (사용하지 않음)
   Future<void> _initializeResume() async {
-    String? userId = _firebaseService.currentUser?.uid;
-
-    if (userId != null) {
-      await loadResumeFromServer(userId);
-    }
+    // 사용하지 않음
   }
 
-  // 서버에서 이력서 불러오기
+  // 서버에서 이력서 불러오기 (사용하지 않음)
   Future<void> loadResumeFromServer(String userId) async {
-    try {
-      _isLoadingFromServer = true;
-      notifyListeners();
-
-      final resumeData = await _resumeService.getResume(userId);
-
-      if (resumeData != null) {
-        _model.field = resumeData.field;
-        _model.position = resumeData.position;
-        _model.experience = resumeData.experience;
-        _model.interviewTypes = resumeData.interviewTypes;
-        _model.certificates = resumeData.certificates;
-        _model.education = resumeData.education;
-        _model.selfIntroduction = resumeData.selfIntroduction;
-
-        _resumeExistsOnServer = true;
-      }
-
-      _isLoadingFromServer = false;
-      notifyListeners();
-    } catch (e) {
-      _setError('이력서를 불러오는데 실패했습니다: $e');
-      _isLoadingFromServer = false;
-      notifyListeners();
-    }
+    // 사용하지 않음
   }
 
   // 필드 값 업데이트
@@ -263,17 +239,15 @@ class ResumeController extends ChangeNotifier {
   // 이력서 저장
   Future<bool> saveResume() async {
     try {
-      _setLoading(true);
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw Exception('사용자가 로그인되어 있지 않습니다.');
+      }
 
-      // ResumeService를 통해 이력서 저장
-      final result = await _resumeService.saveResumeToFirestore(_model);
-      _resumeExistsOnServer = result;
-
-      _setLoading(false);
-      return result;
+      // 이력서 데이터를 Firestore에 저장하는 서비스 메서드 호출
+      return await _resumeService.saveResumeToFirestore(_model);
     } catch (e) {
-      _setError('이력서를 저장하는데 실패했습니다: $e');
-      _setLoading(false);
+      print('이력서 저장 중 오류 발생: $e');
       return false;
     }
   }
@@ -281,17 +255,17 @@ class ResumeController extends ChangeNotifier {
   // 이력서 정보로 리포트 생성
   Future<String?> createReportWithResume() async {
     try {
-      _setLoading(true);
+      setLoading(true);
 
       // ResumeService를 통해 이력서 정보로 리포트 생성
       final String reportId =
           await _resumeService.createReportWithResume(_model);
 
-      _setLoading(false);
+      setLoading(false);
       return reportId;
     } catch (e) {
       _setError('리포트를 생성하는데 실패했습니다: $e');
-      _setLoading(false);
+      setLoading(false);
       return null;
     }
   }
@@ -320,7 +294,7 @@ class ResumeController extends ChangeNotifier {
   }
 
   // 로딩 상태 설정
-  void _setLoading(bool loading) {
+  void setLoading(bool loading) {
     _isLoading = loading;
     notifyListeners();
   }

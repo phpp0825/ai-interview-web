@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../controllers/resume_controller.dart';
 import '../common/section_title.dart';
 import '../common/custom_text_field.dart';
+import '../common/date_picker_with_day_widget.dart';
 
 class CertificateForm extends StatelessWidget {
   final ResumeController controller;
@@ -24,7 +25,7 @@ class CertificateForm extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const SectionTitle(title: '자격증 정보'),
+              const SectionTitle(title: '자격증 정보 (선택)'),
               ElevatedButton.icon(
                 onPressed: controller.addCertificate,
                 icon: const Icon(Icons.add),
@@ -107,9 +108,8 @@ class CertificateForm extends StatelessWidget {
                             index, 'issuer', value),
                       ),
                       const SizedBox(height: 8),
-                      CustomTextField(
+                      DatePickerWithDayWidget(
                         label: '취득일',
-                        hint: 'YYYY-MM-DD',
                         initialValue: certificate.date,
                         onChanged: (value) =>
                             controller.updateCertificate(index, 'date', value),

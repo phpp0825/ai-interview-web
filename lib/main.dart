@@ -7,6 +7,7 @@ import 'services/firebase_service.dart';
 import 'views/login_view.dart';
 import 'views/home_view.dart';
 import 'views/landing_view.dart';
+import 'views/report_list_view.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -76,6 +77,7 @@ class MyApp extends StatelessWidget {
             '/login': (context) => const LoginView(),
             '/home': (context) => const HomePage(),
             '/landing': (context) => const LandingView(),
+            '/report-list': (context) => const ReportListView(),
           },
           initialRoute: '/',
           theme: ThemeData(

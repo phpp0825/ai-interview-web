@@ -182,7 +182,6 @@ class ReportService {
         'score': 0, // 초기 점수 0
         'duration': 0, // 초기 시간 0
         'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
       });
 
       print('리포트가 성공적으로 생성되었습니다. 리포트 ID: $reportId');
@@ -217,7 +216,6 @@ class ReportService {
       // 상태 업데이트
       await _firestore.collection('reports').doc(reportId).update({
         'status': status,
-        'updatedAt': FieldValue.serverTimestamp(),
       });
 
       return true;
@@ -289,6 +287,84 @@ class ReportService {
     } catch (e) {
       print('전체 리포트 목록 조회 중 오류 발생: $e');
       throw Exception('리포트 목록을 가져오는데 실패했습니다: $e');
+    }
+  }
+
+  /// 현재 사용자의 리포트 목록 조회 (간략 정보)
+  ///
+  /// 현재 로그인된 사용자의 모든 리포트 목록을 간략하게 조회합니다.
+  Future<List<Map<String, dynamic>>> getCurrentUserReportSummaries() async {
+    try {
+      final User? currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('로그인된 사용자가 없습니다.');
+      }
+
+      final String userId = currentUser.uid;
+
+      // Firestore에서 사용자의 리포트 목록 조회
+      final QuerySnapshot reports = await _firestore
+          .collection('reports')
+          .where('userId', isEqualTo: userId)
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      if (reports.docs.isEmpty) {
+        return [];
+      }
+
+      return reports.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        final resumeData = data.containsKey('resumeData')
+            ? data['resumeData'] as Map<String, dynamic>
+            : {'field': data['field'], 'position': data['position']};
+
+        return {
+          'id': doc.id,
+          'title': data['title'] ?? '면접 분석 보고서',
+          'field': resumeData['field'] ?? data['field'] ?? '',
+          'position': resumeData['position'] ?? data['position'] ?? '',
+          'interviewType': data['interviewType'] ?? '직무면접',
+          'status': data['status'] ?? 'completed',
+          'score': data['score'] ?? 0,
+          'duration': data['duration'] ?? 0,
+          'createdAt': data['createdAt'],
+        };
+      }).toList();
+    } catch (e) {
+      print('리포트 목록 조회 중 오류 발생: $e');
+      throw Exception('리포트 목록을 가져오는데 실패했습니다: $e');
+    }
+  }
+
+  /// 리포트 내용 업데이트
+  ///
+  /// [reportId] 리포트의 내용을 [content]로 업데이트합니다.
+  Future<bool> updateReportContent(String reportId, String content) async {
+    try {
+      await _firestore.collection('reports').doc(reportId).update({
+        'content': content,
+        'status': 'completed',
+      });
+      return true;
+    } catch (e) {
+      print('리포트 내용 업데이트 중 오류 발생: $e');
+      return false;
+    }
+  }
+
+  /// 리포트 점수 업데이트
+  ///
+  /// [reportId] 리포트의 점수를 [score]로 업데이트합니다.
+  Future<bool> updateReportScore(String reportId, double score) async {
+    try {
+      await _firestore.collection('reports').doc(reportId).update({
+        'score': score,
+      });
+      return true;
+    } catch (e) {
+      print('리포트 점수 업데이트 중 오류 발생: $e');
+      return false;
     }
   }
 }

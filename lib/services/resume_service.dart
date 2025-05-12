@@ -9,6 +9,9 @@ import '../services/report_service.dart';
 /// 이력서 기반 리포트 생성 기능을 담당합니다.
 /// Firestore와의 통신을 통해 데이터를 관리합니다.
 class ResumeService {
+  // 컬렉션 이름 상수
+  static const String _resumesCollection = 'resumes';
+
   // Firestore 인스턴스
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -18,34 +21,43 @@ class ResumeService {
   // ReportService 인스턴스
   final ReportService _reportService = ReportService();
 
+  /// 현재 로그인된 사용자 가져오기 (없으면 예외 발생)
+  User _getCurrentUser() {
+    final User? currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      throw Exception('로그인된 사용자가 없습니다.');
+    }
+    return currentUser;
+  }
+
   /// 이력서를 Firestore에 저장
   ///
   /// [resume] 객체를 현재 로그인된 사용자의 이력서로 저장합니다.
+  /// 기존 이력서가 있다면 완전히 새로운 내용으로 덮어씁니다.
   Future<bool> saveResumeToFirestore(ResumeModel resume) async {
     try {
-      // 현재 로그인한 사용자 확인
-      final User? currentUser = _auth.currentUser;
-      if (currentUser == null) {
-        throw Exception('로그인된 사용자가 없습니다.');
-      }
-
+      final User currentUser = _getCurrentUser();
       final String userId = currentUser.uid;
 
-      // Firestore에 이력서 저장
-      await _firestore.collection('resumes').doc(userId).set({
+      // 현재 시간을 문서 ID로 사용하여 새 이력서 생성
+      final String resumeId =
+          '${userId}_${DateTime.now().millisecondsSinceEpoch}';
+
+      // 전체 데이터를 하나의 JSON 객체로 구성
+      final Map<String, dynamic> jsonData = {
         'userId': userId,
-        'resumeData': resume.toMap(),
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+        'data': resume.toJson(),
+        'metadata': {
+          'createdAt': FieldValue.serverTimestamp(),
+        }
+      };
 
-      // 사용자 문서에도 이력서 정보 참조 추가
-      await _firestore.collection('users').doc(userId).set({
-        'hasResume': true,
-        'lastResumeUpdated': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      // Firestore에 새 이력서 저장 (기존 이력서를 덮어쓰지 않음)
+      await _firestore
+          .collection(_resumesCollection)
+          .doc(resumeId)
+          .set(jsonData);
 
-      print('Firestore에 이력서가 성공적으로 저장되었습니다. 사용자 ID: $userId');
       return true;
     } catch (e) {
       print('Firestore에 이력서 저장 중 오류 발생: $e');
@@ -58,27 +70,12 @@ class ResumeService {
   /// [resume] 데이터를 저장하고, 이를 기반으로 새 리포트를 생성합니다.
   Future<String> createReportWithResume(ResumeModel resume) async {
     try {
-      // 현재 로그인한 사용자 확인
-      final User? currentUser = _auth.currentUser;
-      if (currentUser == null) {
-        throw Exception('로그인된 사용자가 없습니다.');
-      }
-
-      final String userId = currentUser.uid;
-
       // 1. 먼저 이력서 저장
       await saveResumeToFirestore(resume);
 
       // 2. ReportService를 통해 리포트 생성
       final String reportId = await _reportService.createReport(resume);
 
-      // 3. 사용자 문서에 생성된 리포트 ID 추가
-      await _firestore.collection('users').doc(userId).update({
-        'reports': FieldValue.arrayUnion([reportId]),
-        'lastReportCreated': FieldValue.serverTimestamp(),
-      });
-
-      print('리포트가 성공적으로 생성되었습니다. 리포트 ID: $reportId');
       return reportId;
     } catch (e) {
       print('리포트 생성 중 오류 발생: $e');
@@ -86,24 +83,81 @@ class ResumeService {
     }
   }
 
+  /// 이력서 데이터 파싱
+  ///
+  /// 문서 데이터에서 이력서 데이터를 추출합니다.
+  /// 새 구조와 이전 구조 모두 지원합니다.
+  ResumeModel? _parseResumeData(Map<String, dynamic>? data) {
+    if (data == null) return null;
+
+    // 새 구조 (data 필드에 저장된 경우)
+    if (data.containsKey('data')) {
+      final resumeData = data['data'] as Map<String, dynamic>;
+      return ResumeModel.fromJson(resumeData);
+    }
+
+    // 기존 구조 (resumeData 필드에 저장된 경우) - 하위 호환성
+    else if (data.containsKey('resumeData')) {
+      final resumeData = data['resumeData'] as Map<String, dynamic>;
+      return ResumeModel.fromJson(resumeData);
+    }
+
+    return null;
+  }
+
   /// 이력서 조회
   ///
-  /// [userId]에 해당하는 사용자의 이력서를 조회합니다.
+  /// [userId]에 해당하는 사용자의 가장 최근 이력서를 조회합니다.
   Future<ResumeModel?> getResume(String userId) async {
     try {
-      // Firestore에서 조회
-      final DocumentSnapshot doc =
-          await _firestore.collection('resumes').doc(userId).get();
+      // 인덱스가 없을 경우를 대비한 예외 처리
+      try {
+        // 사용자의 이력서 목록 중 가장 최신 1개 조회 (인덱스 필요)
+        final QuerySnapshot querySnapshot = await _firestore
+            .collection(_resumesCollection)
+            .where('userId', isEqualTo: userId)
+            .orderBy('metadata.createdAt', descending: true)
+            .limit(1)
+            .get();
 
-      if (doc.exists && doc.data() != null) {
-        final data = doc.data() as Map<String, dynamic>;
-        if (data.containsKey('resumeData')) {
-          final resumeData = data['resumeData'] as Map<String, dynamic>;
-          return ResumeModel.fromMap(resumeData);
+        if (querySnapshot.docs.isNotEmpty) {
+          // 가장 최신 이력서 반환
+          final DocumentSnapshot doc = querySnapshot.docs.first;
+          return _parseResumeData(doc.data() as Map<String, dynamic>?);
+        }
+      } catch (indexError) {
+        print('인덱스 오류 발생, 대체 쿼리 사용: $indexError');
+        // 인덱스가 없는 경우 대체 쿼리 - 모든 문서를 가져와서 클라이언트에서 필터링
+        final QuerySnapshot allResumes = await _firestore
+            .collection(_resumesCollection)
+            .where('userId', isEqualTo: userId)
+            .get();
+
+        if (allResumes.docs.isEmpty) return null;
+
+        // 클라이언트에서 createdAt으로 정렬
+        final sortedDocs = allResumes.docs.toList()
+          ..sort((a, b) {
+            final aData = a.data() as Map<String, dynamic>;
+            final bData = b.data() as Map<String, dynamic>;
+
+            final aCreatedAt = aData['metadata']?['createdAt'];
+            final bCreatedAt = bData['metadata']?['createdAt'];
+
+            if (aCreatedAt == null && bCreatedAt == null) return 0;
+            if (aCreatedAt == null) return 1; // null은 뒤로
+            if (bCreatedAt == null) return -1; // null은 뒤로
+
+            // Timestamp 비교
+            return bCreatedAt.compareTo(aCreatedAt); // 내림차순 정렬
+          });
+
+        if (sortedDocs.isNotEmpty) {
+          final latestDoc = sortedDocs.first;
+          return _parseResumeData(latestDoc.data() as Map<String, dynamic>?);
         }
       }
 
-      // 없는 경우 null 반환
       return null;
     } catch (e) {
       print('이력서 조회 중 오류 발생: $e');
@@ -115,12 +169,35 @@ class ResumeService {
   ///
   /// 현재 로그인된 사용자의 이력서를 조회합니다.
   Future<ResumeModel?> getCurrentUserResume() async {
-    final User? currentUser = _auth.currentUser;
-    if (currentUser == null) {
-      throw Exception('로그인된 사용자가 없습니다.');
-    }
-
+    final User currentUser = _getCurrentUser();
     return getResume(currentUser.uid);
+  }
+
+  /// 생성 일시 추출
+  ///
+  /// 문서 데이터에서 생성 일시를 추출합니다.
+  /// 새 구조와 이전 구조 모두 지원합니다.
+  dynamic _getCreatedAt(Map<String, dynamic> data) {
+    return data.containsKey('metadata')
+        ? (data['metadata'] as Map<String, dynamic>)['createdAt']
+        : data['createdAt'];
+  }
+
+  /// 이력서 데이터 추출
+  ///
+  /// 문서 데이터에서 이력서 필드 데이터를 추출합니다.
+  /// 새 구조와 이전 구조 모두 지원합니다.
+  Map<String, dynamic> _extractResumeData(Map<String, dynamic> data) {
+    // 새 구조 (data 필드에 저장된 경우)
+    if (data.containsKey('data')) {
+      return data['data'] as Map<String, dynamic>;
+    }
+    // 기존 구조 (resumeData 필드에 저장된 경우) - 하위 호환성
+    else if (data.containsKey('resumeData')) {
+      return data['resumeData'] as Map<String, dynamic>;
+    }
+    // 그 외에는 데이터 자체를 반환
+    return data;
   }
 
   /// 모든 사용자의 이력서 목록 조회 (관리자 전용)
@@ -129,23 +206,23 @@ class ResumeService {
   Future<List<Map<String, dynamic>>> getAllResumes() async {
     try {
       // 관리자 권한 확인
-      final User? currentUser = _auth.currentUser;
-      if (currentUser == null) {
-        throw Exception('로그인된 사용자가 없습니다.');
-      }
+      _getCurrentUser();
 
-      // 여기서 관리자 권한 체크 로직 추가
+      // TODO: 여기서 관리자 권한 체크 로직 추가
 
+      // 이력서 목록 조회
       final QuerySnapshot resumes =
-          await _firestore.collection('resumes').get();
+          await _firestore.collection(_resumesCollection).get();
 
       return resumes.docs.map((doc) {
         final data = doc.data() as Map<String, dynamic>;
+        final resumeData = _extractResumeData(data);
+        final createdAt = _getCreatedAt(data);
+
         return {
-          'userId': doc.id,
-          'resumeData': data['resumeData'],
-          'createdAt': data['createdAt'],
-          'updatedAt': data['updatedAt'],
+          'id': doc.id,
+          'data': resumeData,
+          'createdAt': createdAt,
         };
       }).toList();
     } catch (e) {
@@ -156,33 +233,115 @@ class ResumeService {
 
   /// 이력서 삭제
   ///
-  /// [userId]에 해당하는 사용자의 이력서를 삭제합니다.
+  /// [resumeId]에 해당하는 이력서를 삭제합니다.
   /// 본인의 이력서만 삭제 가능합니다.
-  Future<bool> deleteResume(String userId) async {
+  Future<bool> deleteResume(String resumeId) async {
     try {
-      // 현재 로그인한 사용자 확인
-      final User? currentUser = _auth.currentUser;
-      if (currentUser == null) {
-        throw Exception('로그인된 사용자가 없습니다.');
+      final User currentUser = _getCurrentUser();
+      final String userId = currentUser.uid;
+
+      // 이력서 문서 조회
+      final DocumentSnapshot doc =
+          await _firestore.collection(_resumesCollection).doc(resumeId).get();
+
+      if (!doc.exists) {
+        throw Exception('존재하지 않는 이력서입니다.');
       }
 
+      // 이력서의 소유자 확인
+      final data = doc.data() as Map<String, dynamic>;
+      final String docUserId = data['userId'] as String;
+
       // 본인 이력서만 삭제 가능하도록 체크
-      if (currentUser.uid != userId) {
+      if (userId != docUserId) {
         throw Exception('다른 사용자의 이력서는 삭제할 수 없습니다.');
       }
 
       // Firestore에서 이력서 삭제
-      await _firestore.collection('resumes').doc(userId).delete();
-
-      // 사용자 문서 업데이트
-      await _firestore.collection('users').doc(userId).update({
-        'hasResume': false,
-      });
+      await _firestore.collection(_resumesCollection).doc(resumeId).delete();
 
       return true;
     } catch (e) {
       print('이력서 삭제 중 오류 발생: $e');
       throw Exception('이력서를 삭제하는데 실패했습니다: $e');
     }
+  }
+
+  /// 현재 사용자의 이력서 목록 조회
+  ///
+  /// 현재 로그인된 사용자의 모든 이력서를 조회합니다.
+  Future<List<Map<String, dynamic>>> getCurrentUserResumeList() async {
+    try {
+      final User currentUser = _getCurrentUser();
+      final String userId = currentUser.uid;
+
+      // 인덱스가 없을 경우를 대비한 예외 처리
+      try {
+        // 사용자의 이력서 목록 조회 (인덱스 필요)
+        final QuerySnapshot resumes = await _firestore
+            .collection(_resumesCollection)
+            .where('userId', isEqualTo: userId)
+            .orderBy('metadata.createdAt', descending: true)
+            .get();
+
+        if (resumes.docs.isEmpty) {
+          return [];
+        }
+
+        return _processResumeDocuments(resumes.docs);
+      } catch (indexError) {
+        print('인덱스 오류 발생, 대체 쿼리 사용: $indexError');
+        // 인덱스가 없는 경우 대체 쿼리 - 모든 문서를 가져와서 클라이언트에서 필터링
+        final QuerySnapshot allResumes = await _firestore
+            .collection(_resumesCollection)
+            .where('userId', isEqualTo: userId)
+            .get();
+
+        if (allResumes.docs.isEmpty) {
+          return [];
+        }
+
+        // 클라이언트에서 createdAt으로 정렬
+        final sortedDocs = allResumes.docs.toList()
+          ..sort((a, b) {
+            final aData = a.data() as Map<String, dynamic>;
+            final bData = b.data() as Map<String, dynamic>;
+
+            final aCreatedAt = aData['metadata']?['createdAt'];
+            final bCreatedAt = bData['metadata']?['createdAt'];
+
+            if (aCreatedAt == null && bCreatedAt == null) return 0;
+            if (aCreatedAt == null) return 1; // null은 뒤로
+            if (bCreatedAt == null) return -1; // null은 뒤로
+
+            // Timestamp 비교
+            return bCreatedAt.compareTo(aCreatedAt); // 내림차순 정렬
+          });
+
+        return _processResumeDocuments(sortedDocs);
+      }
+    } catch (e) {
+      print('사용자 이력서 목록 조회 중 오류 발생: $e');
+      throw Exception('이력서 목록을 불러오는데 실패했습니다: $e');
+    }
+  }
+
+  /// 이력서 문서 목록 처리
+  List<Map<String, dynamic>> _processResumeDocuments(
+      List<QueryDocumentSnapshot> docs) {
+    return docs.map((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      final resumeData = _extractResumeData(data);
+      final createdAt = _getCreatedAt(data);
+
+      return {
+        'id': doc.id, // 문서 ID 설정
+        'field': resumeData['field'] ?? '',
+        'position': resumeData['position'] ?? '',
+        'experience': resumeData['experience'] ?? '',
+        'interviewTypes': resumeData['interviewTypes'] ?? [],
+        'createdAt': createdAt,
+      };
+    }).toList();
   }
 }

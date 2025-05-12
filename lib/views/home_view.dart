@@ -7,6 +7,29 @@ import '../widgets/dashboard/resume_widget.dart';
 import '../widgets/dashboard/interview_widget.dart';
 import '../widgets/dashboard/report_widget.dart';
 
+// 스크롤바를 숨기는 커스텀 스크롤 동작
+class NoScrollbarBehavior extends ScrollBehavior {
+  // 스크롤바 제거
+  @override
+  Widget buildScrollbar(
+      BuildContext context, Widget child, ScrollableDetails details) {
+    return child;
+  }
+
+  // 오버스크롤 효과 제거
+  @override
+  Widget buildOverscrollIndicator(
+      BuildContext context, Widget child, ScrollableDetails details) {
+    return child;
+  }
+
+  // 스크롤 물리학 설정
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    return const BouncingScrollPhysics();
+  }
+}
+
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
@@ -57,12 +80,6 @@ class HomePageContent extends StatelessWidget {
       foregroundColor: Colors.white,
       actions: [
         _buildNavMenu(context, controller, primaryColor),
-        // 리포트 생성 버튼
-        IconButton(
-          icon: const Icon(Icons.assessment),
-          tooltip: '새 리포트 생성',
-          onPressed: () => controller.showCreateReportDialog(context),
-        ),
         // 로그아웃 버튼
         IconButton(
           icon: const Icon(Icons.logout),
@@ -112,27 +129,28 @@ class HomePageContent extends StatelessWidget {
               const SizedBox(height: 24),
               Expanded(
                 child: LayoutBuilder(builder: (context, constraints) {
-                  // 양쪽에 1/5씩 여백을 주기 위해 너비 계산
+                  // 양쪽에 여백을 주기 위한 계산
                   final availableWidth = constraints.maxWidth;
-                  final contentWidth = availableWidth * 3 / 5; // 전체의 3/5만 사용
-                  final sideMargin = availableWidth * 1 / 5; // 양쪽 각각 1/5씩 여백
+                  final sideMargin = availableWidth * 0.1; // 양쪽 각각 10%씩 여백
 
                   return Padding(
                     padding: EdgeInsets.symmetric(horizontal: sideMargin),
-                    child: SingleChildScrollView(
-                      physics:
-                          const NeverScrollableScrollPhysics(), // 스크롤 기능 비활성화
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // 이력서 작성 위젯
-                          ResumeWidget(color: primaryColor),
-                          // 면접 연습 위젯
-                          InterviewWidget(color: primaryColor),
-                          // 면접 보고서 위젯
-                          ReportWidget(color: primaryColor),
-                        ],
-                      ),
+                    child: Column(
+                      // 위젯들이 Expanded 안에서 꽉 차게 배치
+                      children: [
+                        // 이력서 작성 위젯 - 화면 높이의 1/3
+                        Expanded(
+                          child: ResumeWidget(color: primaryColor),
+                        ),
+                        // 면접 연습 위젯 - 화면 높이의 1/3
+                        Expanded(
+                          child: InterviewWidget(color: primaryColor),
+                        ),
+                        // 면접 보고서 위젯 - 화면 높이의 1/3
+                        Expanded(
+                          child: ReportWidget(color: primaryColor),
+                        ),
+                      ],
                     ),
                   );
                 }),

@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/resume_model.dart';
+import '../services/resume_service.dart';
 import '../views/resume_view.dart';
 
 class InterviewController extends ChangeNotifier {
+  // 서비스
+  final ResumeService _resumeService = ResumeService();
+
   // 면접 질문 라이브러리
   final Map<String, List<String>> _questionLibrary = {
     '직무면접': [
@@ -33,24 +38,75 @@ class InterviewController extends ChangeNotifier {
   };
 
   // 상태 변수들
-  final ResumeModel? resumeData;
+  ResumeModel? _selectedResume;
   bool _isInterviewStarted = false;
   String _currentQuestion = '';
   List<String> _questionHistory = [];
   bool _isLoading = false;
+  bool _isLoadingResumes = false;
+  String? _error;
+  List<Map<String, dynamic>> _resumeList = [];
 
   // Getters
+  ResumeModel? get selectedResume => _selectedResume;
   bool get isInterviewStarted => _isInterviewStarted;
   String get currentQuestion => _currentQuestion;
   List<String> get questionHistory => _questionHistory;
   bool get isLoading => _isLoading;
+  bool get isLoadingResumes => _isLoadingResumes;
+  String? get error => _error;
+  List<Map<String, dynamic>> get resumeList => _resumeList;
 
   // 생성자
-  InterviewController({this.resumeData});
+  InterviewController({ResumeModel? initialResume}) {
+    _selectedResume = initialResume;
+    _loadResumeList();
+  }
+
+  // 이력서 목록 로드
+  Future<void> _loadResumeList() async {
+    try {
+      _isLoadingResumes = true;
+      _error = null;
+      notifyListeners();
+
+      _resumeList = await _resumeService.getCurrentUserResumeList();
+
+      _isLoadingResumes = false;
+      notifyListeners();
+    } catch (e) {
+      _error = '이력서 목록을 불러오는데 실패했습니다: $e';
+      _isLoadingResumes = false;
+      notifyListeners();
+    }
+  }
+
+  // 이력서 선택
+  Future<void> selectResume(String resumeId) async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      final resume = await _resumeService.getResume(resumeId);
+      _selectedResume = resume;
+
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _error = '이력서를 불러오는데 실패했습니다: $e';
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // 새로고침
+  Future<void> refreshResumeList() async {
+    await _loadResumeList();
+  }
 
   // 면접 시작
   void startInterview(BuildContext context) {
-    if (resumeData == null) {
+    if (_selectedResume == null) {
       showNoResumeDialog(context);
       return;
     }
@@ -71,8 +127,8 @@ class InterviewController extends ChangeNotifier {
       final List<String> availableQuestionTypes = [];
 
       // 선택된 면접 유형에 따라 질문 카테고리 결정
-      if (resumeData != null) {
-        for (String type in resumeData!.interviewTypes) {
+      if (_selectedResume != null) {
+        for (String type in _selectedResume!.interviewTypes) {
           if (_questionLibrary.containsKey(type)) {
             availableQuestionTypes.add(type);
           }
@@ -135,7 +191,7 @@ class InterviewController extends ChangeNotifier {
             ElevatedButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                Navigator.of(context).pop(); // 홈 화면으로 돌아가기
+                navigateToResumeView(context);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
@@ -151,11 +207,109 @@ class InterviewController extends ChangeNotifier {
     );
   }
 
+  // 이력서 선택 다이얼로그 표시
+  void showResumeSelectionDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          title: Row(
+            children: [
+              const Icon(Icons.description, color: Colors.deepPurple),
+              const SizedBox(width: 10),
+              const Text('이력서 선택'),
+            ],
+          ),
+          content: _isLoadingResumes
+              ? const Center(
+                  child: CircularProgressIndicator(),
+                )
+              : SizedBox(
+                  width: double.maxFinite,
+                  height: 300,
+                  child: _resumeList.isEmpty
+                      ? const Center(
+                          child: Text('저장된 이력서가 없습니다.'),
+                        )
+                      : ListView.builder(
+                          itemCount: _resumeList.length,
+                          itemBuilder: (context, index) {
+                            final resume = _resumeList[index];
+                            return ListTile(
+                              title: Text(resume['position'] ?? '직무 정보 없음'),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(resume['field'] ?? '분야 정보 없음'),
+                                  Text('경력: ${resume['experience'] ?? '신입'}'),
+                                ],
+                              ),
+                              trailing: resume['createdAt'] != null
+                                  ? Text(_formatDate(resume['createdAt']))
+                                  : null,
+                              onTap: () async {
+                                Navigator.of(context).pop();
+                                await selectResume(resume['id']);
+                                startInterview(context);
+                              },
+                            );
+                          },
+                        ),
+                ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('취소'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                navigateToResumeView(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.deepPurple,
+                elevation: 1,
+                side: const BorderSide(color: Colors.deepPurple),
+              ),
+              child: const Text('새 이력서 작성'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   // 이력서 작성 페이지로 이동
   void navigateToResumeView(BuildContext context) {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const ResumeView()),
-    );
+    ).then((_) {
+      // 이력서 작성 후 돌아왔을 때 목록 새로고침
+      refreshResumeList();
+    });
+  }
+
+  // 날짜 포맷팅 유틸리티 함수
+  String _formatDate(dynamic timestamp) {
+    if (timestamp == null) return '날짜 정보 없음';
+
+    try {
+      DateTime date;
+      if (timestamp is DateTime) {
+        date = timestamp;
+      } else {
+        // Firestore 타임스탬프 변환
+        date = (timestamp as Timestamp).toDate();
+      }
+
+      return '${date.year}.${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')}';
+    } catch (e) {
+      return '날짜 정보 오류';
+    }
   }
 }

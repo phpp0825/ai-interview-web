@@ -41,7 +41,9 @@ class HomeController extends ChangeNotifier {
   void navigateToResumeView(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const ResumeView()),
+      MaterialPageRoute(
+        builder: (context) => const ResumeView(),
+      ),
     );
   }
 
@@ -53,12 +55,9 @@ class HomeController extends ChangeNotifier {
     );
   }
 
-  // 보고서 화면으로 이동하는 기능
+  // 리포트 화면으로 이동
   void navigateToReportView(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const ReportView()),
-    );
+    Navigator.pushNamed(context, '/report-list');
   }
 
   // 면접 시작 전 다이얼로그 표시
