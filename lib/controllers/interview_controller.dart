@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
-import '../services/common/camera_service.dart';
+import '../services/common/video_recording_service.dart';
+import '../services/common/image_capture_service.dart';
 import '../services/common/audio_service.dart';
 import '../services/livestream/http_streaming_service.dart';
 import '../services/livestream/http_media_service.dart';
@@ -12,7 +13,8 @@ import '../controllers/report_controller.dart';
 /// 인터뷰 기능을 제어하는 컨트롤러
 class InterviewController with ChangeNotifier {
   // 서비스 인스턴스
-  final CameraService _cameraService;
+  final VideoRecordingService _cameraService;
+  final ImageCaptureService _imageCaptureService;
   final AudioService _audioService;
   final ResumeService _resumeService;
   final ReportController _reportController;
@@ -59,16 +61,19 @@ class InterviewController with ChangeNotifier {
           : null;
 
   // 서비스 게터 (필요한 경우)
-  CameraService get cameraService => _cameraService;
+  VideoRecordingService get cameraService => _cameraService;
+  ImageCaptureService get imageCaptureService => _imageCaptureService;
 
   // 생성자 - 기본 서비스만 초기화
   InterviewController({
-    required CameraService cameraService,
+    required VideoRecordingService cameraService,
+    required ImageCaptureService imageCaptureService,
     required AudioService audioService,
     required ResumeService resumeService,
     required ReportController reportController,
     String serverUrl = 'http://localhost:8080',
   })  : _cameraService = cameraService,
+        _imageCaptureService = imageCaptureService,
         _audioService = audioService,
         _resumeService = resumeService,
         _reportController = reportController,
@@ -79,13 +84,15 @@ class InterviewController with ChangeNotifier {
     String serverUrl = 'http://localhost:8080',
     ReportController? reportController,
   }) async {
-    final cameraService = CameraService();
+    final cameraService = VideoRecordingService();
+    final imageCaptureService = ImageCaptureService(cameraService);
     final audioService = AudioService();
     final resumeService = ResumeService();
     final reportCtrl = reportController ?? ReportController();
 
     final controller = InterviewController(
       cameraService: cameraService,
+      imageCaptureService: imageCaptureService,
       audioService: audioService,
       resumeService: resumeService,
       reportController: reportCtrl,
@@ -128,7 +135,7 @@ class InterviewController with ChangeNotifier {
       // 미디어 서비스에 비디오/오디오 콜백 설정
       _mediaService.setVideoFrameCallback(() async {
         if (_cameraService.isInitialized) {
-          final frameData = await _cameraService.captureFrame();
+          final frameData = await _imageCaptureService.captureFrame();
           // 더미 카메라거나 프레임 캡처 실패 시에도 인터뷰는 계속 진행
           if (frameData == null && _cameraService.isUsingDummyCamera) {
             // 더미 카메라 사용 중일 때는 null 반환해도 괜찮음
@@ -436,6 +443,7 @@ class InterviewController with ChangeNotifier {
     }
 
     // 리소스 해제
+    _imageCaptureService.dispose();
     _cameraService.dispose();
     _audioService.dispose();
     _mediaService.dispose();

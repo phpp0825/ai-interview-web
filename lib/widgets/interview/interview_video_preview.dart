@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
-import '../../services/common/camera_service.dart';
+import '../../services/common/video_recording_service.dart';
 
 /// 인터뷰 비디오 미리보기 위젯
 class InterviewVideoPreview extends StatelessWidget {
-  final CameraService cameraService;
+  final VideoRecordingService cameraService;
   final bool isInterviewStarted;
   final VoidCallback onStartInterview;
 
