@@ -389,6 +389,7 @@ class _HttpInterviewViewState extends State<HttpInterviewView> {
                 // 하단 컨트롤 바
                 InterviewControlBar(
                   isInterviewStarted: _controller!.isInterviewStarted,
+                  isUploadingVideo: _controller!.isUploadingVideo,
                   onStartInterview: () async {
                     if (_controller!.selectedResume == null) {
                       _showResumeSelectionDialog();
@@ -402,7 +403,7 @@ class _HttpInterviewViewState extends State<HttpInterviewView> {
                   },
                   onStopInterview: () async {
                     await _controller!.stopInterview();
-                    _showSnackBar('면접이 종료되었습니다');
+                    _showSnackBar('면접이 종료되었습니다. 비디오가 업로드되고 보고서가 자동으로 생성됩니다.');
                   },
                 ),
               ],

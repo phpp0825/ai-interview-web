@@ -169,9 +169,15 @@ class ReportService {
       }
       title += '면접 분석';
 
+      // 이력서 ID 가져오기 (있는 경우)
+      final resumeId = resume.resume_id.isNotEmpty
+          ? resume.resume_id
+          : 'resume_${DateTime.now().millisecondsSinceEpoch}';
+
       // Firestore에 리포트 정보 저장
       await _firestore.collection('reports').doc(reportId).set({
         'reportId': reportId,
+        'resumeId': resumeId, // 이력서 ID 추가
         'userId': userId,
         'title': title,
         'resumeData': resume.toMap(),
@@ -184,7 +190,7 @@ class ReportService {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      print('리포트가 성공적으로 생성되었습니다. 리포트 ID: $reportId');
+      print('리포트가 성공적으로 생성되었습니다. 리포트 ID: $reportId, 이력서 ID: $resumeId');
       return reportId;
     } catch (e) {
       print('리포트 생성 중 오류 발생: $e');
@@ -364,6 +370,83 @@ class ReportService {
       return true;
     } catch (e) {
       print('리포트 점수 업데이트 중 오류 발생: $e');
+      return false;
+    }
+  }
+
+  /// 면접 완료 후 보고서 생성
+  ///
+  /// 면접이 종료된 후 보고서를 자동으로 생성합니다.
+  /// [interviewId]는 진행된 면접의 고유 식별자입니다.
+  /// [resumeId]는 면접에 사용된 이력서의 고유 식별자입니다.
+  /// [resumeData]는 면접에 사용된 이력서 데이터입니다.
+  Future<String> createInterviewReport(String interviewId, String resumeId,
+      Map<String, dynamic> resumeData) async {
+    try {
+      final User? currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('로그인된 사용자가 없습니다.');
+      }
+
+      final String userId = currentUser.uid;
+      final String reportId = 'report_${DateTime.now().millisecondsSinceEpoch}';
+
+      // 면접 타입 결정 (이력서 데이터에서 가져오거나 기본값 사용)
+      final String interviewType = resumeData['interviewTypes'] != null &&
+              (resumeData['interviewTypes'] as List).isNotEmpty
+          ? (resumeData['interviewTypes'] as List).first
+          : '직무면접';
+
+      // 보고서 제목 생성
+      String title = '${resumeData['position'] ?? '직무'} 면접 분석';
+      if (resumeData['experience'] != null &&
+          resumeData['experience'].toString().isNotEmpty) {
+        title =
+            '${resumeData['position'] ?? '직무'} ${resumeData['experience']} 면접 분석';
+      }
+
+      // Firestore에 보고서 정보 저장
+      await _firestore.collection('reports').doc(reportId).set({
+        'reportId': reportId,
+        'interviewId': interviewId,
+        'resumeId': resumeId,
+        'userId': userId,
+        'title': title,
+        'resumeData': resumeData,
+        'field': resumeData['field'] ?? '',
+        'position': resumeData['position'] ?? '',
+        'interviewType': interviewType,
+        'status': 'processing', // 상태: 처리 중
+        'score': 0, // 초기 점수
+        'duration': 0, // 초기 시간
+        'videoUrl': '', // 비디오 URL은 처리 후 업데이트됨
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // 사용자 문서에 보고서 ID 추가
+      await _firestore.collection('users').doc(userId).update({
+        'reports': FieldValue.arrayUnion([reportId]),
+      });
+
+      print('면접 보고서가 성공적으로 생성되었습니다. 보고서 ID: $reportId');
+      return reportId;
+    } catch (e) {
+      print('면접 보고서 생성 중 오류 발생: $e');
+      throw Exception('면접 보고서를 생성하는데 실패했습니다: $e');
+    }
+  }
+
+  /// 보고서의 비디오 URL 업데이트
+  ///
+  /// [reportId] 보고서의 비디오 URL을 [videoUrl]로 업데이트합니다.
+  Future<bool> updateReportVideoUrl(String reportId, String videoUrl) async {
+    try {
+      await _firestore.collection('reports').doc(reportId).update({
+        'videoUrl': videoUrl,
+      });
+      return true;
+    } catch (e) {
+      print('보고서 비디오 URL 업데이트 중 오류 발생: $e');
       return false;
     }
   }

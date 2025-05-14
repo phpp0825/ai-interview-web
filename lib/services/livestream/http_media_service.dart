@@ -89,10 +89,10 @@ class HttpMediaService {
     // 기존 타이머 종료
     _stopVideoStreamTimer();
 
-    // 새 타이머 시작 (3초마다 프레임 전송)
+    // 새 타이머 시작 (3초마다 프레임 캡처만 진행하고 저장)
     _videoStreamTimer =
         Timer.periodic(const Duration(seconds: 3), (timer) async {
-      if (!_isVideoStreamingEnabled || !_httpService.isConnected) {
+      if (!_isVideoStreamingEnabled) {
         timer.cancel();
         return;
       }
@@ -105,7 +105,7 @@ class HttpMediaService {
         if (jpegData == null || jpegData.isEmpty) {
           _consecutiveNullVideoFrames++;
           if (_consecutiveNullVideoFrames >= _maxConsecutiveNullFrames) {
-            // 연속으로 null 프레임이 너무 많으면 로그만 출력 (인터뷰는 계속 진행)
+            // 연속으로 null 프레임이 너무 많으면 로그만 출력
             print(
                 '연속 ${_consecutiveNullVideoFrames}번 비디오 프레임을 가져올 수 없습니다. 카메라가 없거나 비활성화되었을 수 있습니다.');
           }
@@ -115,21 +115,12 @@ class HttpMediaService {
         // 정상 프레임을 받으면 카운터 초기화
         _consecutiveNullVideoFrames = 0;
 
-        // 마지막 캡처 프레임 저장
+        // 마지막 캡처 프레임 저장 (서버로 전송하지 않고 로컬에만 저장)
         _lastCapturedVideoFrame = jpegData;
 
-        // 서버로 전송
-        final response = await _httpService.post(
-          'video',
-          jpegData,
-          headers: {'Content-Type': 'application/octet-stream'},
-        );
-
-        if (response?.statusCode != 200) {
-          print('비디오 프레임 전송 실패: ${response?.statusCode}');
-        }
+        // 서버로 전송하는 코드는 제거
       } catch (e) {
-        print('비디오 프레임 전송 오류: $e');
+        print('비디오 프레임 캡처 오류: $e');
       }
     });
 
@@ -154,10 +145,10 @@ class HttpMediaService {
     // 기존 타이머 종료
     _stopAudioStreamTimer();
 
-    // 새 타이머 시작 (1초마다 오디오 데이터 전송)
+    // 새 타이머 시작 (1초마다 오디오 데이터 캡처만 진행)
     _audioStreamTimer =
         Timer.periodic(const Duration(seconds: 1), (timer) async {
-      if (!_isAudioStreamingEnabled || !_httpService.isConnected) {
+      if (!_isAudioStreamingEnabled) {
         timer.cancel();
         return;
       }
@@ -165,23 +156,18 @@ class HttpMediaService {
       try {
         // 콜백으로부터 현재 오디오 데이터 가져오기
         final Uint8List? audioData = await _getAudioDataCallback!();
-        if (audioData == null || audioData.isEmpty) return;
 
-        // 마지막 캡처 오디오 데이터 저장
+        // 오디오 데이터가 null인 경우 처리
+        if (audioData == null || audioData.isEmpty) {
+          return;
+        }
+
+        // 마지막 캡처된 오디오 데이터 저장 (서버로 전송하지 않고 로컬에만 저장)
         _lastCapturedAudioData = audioData;
 
-        // 서버로 전송
-        final response = await _httpService.post(
-          'audio',
-          audioData,
-          headers: {'Content-Type': 'application/octet-stream'},
-        );
-
-        if (response?.statusCode != 200) {
-          print('오디오 데이터 전송 실패: ${response?.statusCode}');
-        }
+        // 서버로 전송하는 코드는 제거
       } catch (e) {
-        print('오디오 데이터 전송 오류: $e');
+        print('오디오 데이터 캡처 오류: $e');
       }
     });
 

@@ -14,11 +14,13 @@ class HttpInterviewService {
   String? _resumeId;
   List<String> _questions = [];
   int _currentQuestionIndex = -1;
+  Map<String, dynamic>? _resumeData;
 
   // 콜백 함수
   final Function(String) onError;
   final Function()? onStateChanged;
   final Function(List<String>)? onQuestionsLoaded;
+  final Function(String, String, Map<String, dynamic>)? onInterviewCompleted;
 
   // 상태 getter
   bool get isInterviewStarted => _isInterviewStarted;
@@ -26,15 +28,17 @@ class HttpInterviewService {
   List<String> get questions => _questions;
   int get currentQuestionIndex => _currentQuestionIndex;
   bool get hasMoreQuestions => _currentQuestionIndex < _questions.length - 1;
+  Map<String, dynamic>? get resumeData => _resumeData;
 
   HttpInterviewService({
     required HttpStreamingService httpService,
-    required HttpMediaService mediaService, 
+    required HttpMediaService mediaService,
     required this.onError,
     this.onStateChanged,
     this.onQuestionsLoaded,
-  }) : _httpService = httpService, 
-       _mediaService = mediaService {
+    this.onInterviewCompleted,
+  })  : _httpService = httpService,
+        _mediaService = mediaService {
     // 연결 상태 변경 감지
     _httpService.connectionStatus.listen(_handleConnectionStatusChanged);
   }
@@ -92,7 +96,95 @@ class HttpInterviewService {
 
     _isInterviewStarted = false;
     print('인터뷰 종료');
+
+    // 면접이 완료된 후 비디오 업로드 실행
+    if (_resumeId != null && _httpService.isConnected) {
+      uploadInterviewVideo(_resumeId!);
+    }
+
     onStateChanged?.call();
+  }
+
+  /// 면접 완료 후 비디오 업로드
+  Future<bool> uploadInterviewVideo(String resumeId) async {
+    if (!_httpService.isConnected) {
+      onError('서버에 연결되지 않아 비디오를 업로드할 수 없습니다');
+      return false;
+    }
+
+    try {
+      print('면접 완료 후 비디오 및 오디오 데이터 업로드 시작: 이력서 ID: $resumeId');
+
+      // 면접 중 캡처된 비디오 및 오디오 데이터 준비
+      final videoData = _mediaService.lastCapturedVideoFrame;
+      final audioData = _mediaService.lastCapturedAudioData;
+
+      if (videoData == null || videoData.isEmpty) {
+        print('업로드할 비디오 데이터가 없습니다');
+      }
+
+      if (audioData == null || audioData.isEmpty) {
+        print('업로드할 오디오 데이터가 없습니다');
+      }
+
+      // 인터뷰 ID 생성
+      final String interviewId =
+          'interview_${DateTime.now().millisecondsSinceEpoch}';
+
+      // 비디오 데이터 업로드 (있는 경우에만)
+      if (videoData != null && videoData.isNotEmpty) {
+        final videoResponse = await _httpService.post(
+          'complete_video/$resumeId',
+          videoData,
+          headers: {'Content-Type': 'application/octet-stream'},
+        );
+
+        if (videoResponse?.statusCode != 200) {
+          print('비디오 데이터 업로드 실패: ${videoResponse?.statusCode}');
+        } else {
+          print('비디오 데이터 업로드 성공');
+        }
+      }
+
+      // 오디오 데이터 업로드 (있는 경우에만)
+      if (audioData != null && audioData.isNotEmpty) {
+        final audioResponse = await _httpService.post(
+          'complete_audio/$resumeId',
+          audioData,
+          headers: {'Content-Type': 'application/octet-stream'},
+        );
+
+        if (audioResponse?.statusCode != 200) {
+          print('오디오 데이터 업로드 실패: ${audioResponse?.statusCode}');
+        } else {
+          print('오디오 데이터 업로드 성공');
+        }
+      }
+
+      // 면접 완료 메타데이터 업로드
+      final completeResponse = await _httpService.post(
+        'complete_interview/$resumeId',
+        {'completed': true, 'interviewId': interviewId},
+      );
+
+      if (completeResponse?.statusCode == 200) {
+        print('면접 완료 처리 성공');
+
+        // 면접 완료 콜백 호출 - 보고서 생성을 위해
+        if (onInterviewCompleted != null && _resumeData != null) {
+          onInterviewCompleted!(interviewId, resumeId, _resumeData!);
+        }
+
+        return true;
+      } else {
+        onError('면접 완료 처리 실패: ${completeResponse?.statusCode}');
+        return false;
+      }
+    } catch (e) {
+      print('면접 데이터 업로드 오류: $e');
+      onError('면접 데이터 업로드 실패: $e');
+      return false;
+    }
   }
 
   /// 이력서 업로드
@@ -109,6 +201,8 @@ class HttpInterviewService {
         // 이력서 ID와 질문 리스트 추출
         final jsonResponse = jsonDecode(response!.body);
         _resumeId = jsonResponse['resume_id'];
+        _resumeData = resumeData; // 이력서 데이터 저장
+
         if (jsonResponse.containsKey('questions')) {
           _questions = List<String>.from(jsonResponse['questions']);
           _currentQuestionIndex = -1;
@@ -226,7 +320,8 @@ class HttpInterviewService {
     }
 
     try {
-      final response = await _httpService.get('get_feedback_summary/$_resumeId');
+      final response =
+          await _httpService.get('get_feedback_summary/$_resumeId');
 
       if (response?.statusCode == 200) {
         final jsonResponse = jsonDecode(response!.body);

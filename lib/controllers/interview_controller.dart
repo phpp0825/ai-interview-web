@@ -7,6 +7,7 @@ import '../services/livestream/http_media_service.dart';
 import '../services/livestream/http_interview_service.dart';
 import '../services/resume/resume_service.dart';
 import '../models/resume_model.dart';
+import '../controllers/report_controller.dart';
 
 /// 인터뷰 기능을 제어하는 컨트롤러
 class InterviewController with ChangeNotifier {
@@ -14,6 +15,7 @@ class InterviewController with ChangeNotifier {
   final CameraService _cameraService;
   final AudioService _audioService;
   final ResumeService _resumeService;
+  final ReportController _reportController;
 
   // late로 변경하여 생성자에서는 초기화하지 않고, initialize 메서드에서 초기화
   late HttpStreamingService _httpService;
@@ -25,6 +27,8 @@ class InterviewController with ChangeNotifier {
   bool _isConnecting = false;
   bool _isConnected = false;
   bool _isInterviewStarted = false;
+  bool _isUploadingVideo = false;
+  bool _isCreatingReport = false;
   ResumeModel? _selectedResume;
   List<Map<String, dynamic>> _resumeList = [];
   Uint8List? _lastCapturedFrame;
@@ -40,6 +44,8 @@ class InterviewController with ChangeNotifier {
   bool get isConnecting => _isConnecting;
   bool get isConnected => _isConnected;
   bool get isInterviewStarted => _isInterviewStarted;
+  bool get isUploadingVideo => _isUploadingVideo;
+  bool get isCreatingReport => _isCreatingReport;
   ResumeModel? get selectedResume => _selectedResume;
   List<Map<String, dynamic>> get resumeList => _resumeList;
   Uint8List? get lastCapturedFrame => _lastCapturedFrame;
@@ -60,24 +66,29 @@ class InterviewController with ChangeNotifier {
     required CameraService cameraService,
     required AudioService audioService,
     required ResumeService resumeService,
+    required ReportController reportController,
     String serverUrl = 'http://localhost:8080',
   })  : _cameraService = cameraService,
         _audioService = audioService,
         _resumeService = resumeService,
+        _reportController = reportController,
         _serverUrl = serverUrl;
 
   /// 팩토리 생성자 - 모든 서비스를 초기화해서 컨트롤러를 만듭니다
   static Future<InterviewController> create({
     String serverUrl = 'http://localhost:8080',
+    ReportController? reportController,
   }) async {
     final cameraService = CameraService();
     final audioService = AudioService();
     final resumeService = ResumeService();
+    final reportCtrl = reportController ?? ReportController();
 
     final controller = InterviewController(
       cameraService: cameraService,
       audioService: audioService,
       resumeService: resumeService,
+      reportController: reportCtrl,
       serverUrl: serverUrl,
     );
 
@@ -108,6 +119,7 @@ class InterviewController with ChangeNotifier {
         onError: _handleError,
         onStateChanged: _handleInterviewStateChanged,
         onQuestionsLoaded: _handleQuestionsLoaded,
+        onInterviewCompleted: _handleInterviewCompleted,
       );
 
       // 서비스 리스너 설정
@@ -159,6 +171,26 @@ class InterviewController with ChangeNotifier {
       _isConnected = status == ConnectionStatus.connected;
       notifyListeners();
     });
+  }
+
+  /// 면접 완료 콜백 처리
+  void _handleInterviewCompleted(String interviewId, String resumeId,
+      Map<String, dynamic> resumeData) async {
+    _isCreatingReport = true;
+    notifyListeners();
+
+    try {
+      // ReportController를 통해 보고서 생성
+      await _reportController.createInterviewReport(
+          interviewId, resumeId, resumeData);
+      print('면접 보고서가 생성되었습니다.');
+    } catch (e) {
+      _errorMessage = '면접 보고서 생성 중 오류가 발생했습니다: $e';
+      print('면접 보고서 생성 오류: $e');
+    } finally {
+      _isCreatingReport = false;
+      notifyListeners();
+    }
   }
 
   /// 이력서 목록 로드
@@ -297,11 +329,22 @@ class InterviewController with ChangeNotifier {
     if (!_isInterviewStarted) return;
 
     try {
+      _isUploadingVideo = true;
+      notifyListeners();
+
       _interviewService.stopInterview();
       _isInterviewStarted = false;
+
+      // 비디오 업로드가 완료되면 상태 업데이트
+      Future.delayed(const Duration(seconds: 2), () {
+        _isUploadingVideo = false;
+        notifyListeners();
+      });
+
       notifyListeners();
     } catch (e) {
       _errorMessage = '인터뷰 종료 중 오류가 발생했습니다: $e';
+      _isUploadingVideo = false;
       notifyListeners();
     }
   }
