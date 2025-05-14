@@ -1,4 +1,6 @@
 class ResumeModel {
+  String id;
+  String name;
   String field;
   String position;
   String experience;
@@ -8,6 +10,8 @@ class ResumeModel {
   SelfIntroduction selfIntroduction;
 
   ResumeModel({
+    this.id = '',
+    this.name = '',
     this.field = '웹 개발',
     this.position = '백엔드 개발자',
     this.experience = '신입',
@@ -23,6 +27,8 @@ class ResumeModel {
   // Map 형태로 변환 (JSON 직렬화)
   Map<String, dynamic> toJson() {
     return {
+      'id': id,
+      'name': name,
       'field': field,
       'position': position,
       'experience': experience,
@@ -39,6 +45,8 @@ class ResumeModel {
   // Map에서 객체 생성 (JSON 역직렬화)
   static ResumeModel fromJson(Map<String, dynamic> json) {
     return ResumeModel(
+      id: json['id'] ?? '',
+      name: json['name'] ?? '',
       field: json['field'] ?? '웹 개발',
       position: json['position'] ?? '백엔드 개발자',
       experience: json['experience'] ?? '신입',

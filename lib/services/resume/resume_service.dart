@@ -1,6 +1,6 @@
-import '../models/resume_model.dart';
-import '../services/report_service.dart';
-import '../services/firestore_service.dart';
+import '../../models/resume_model.dart';
+import '../report/report_service.dart';
+import '../common/firestore_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// 이력서 관련 서비스 기능을 제공하는 클래스
@@ -79,16 +79,20 @@ class ResumeService {
   ResumeModel? _parseResumeData(Map<String, dynamic>? data) {
     if (data == null) return null;
 
-    // 새 구조 (data 필드에 저장된 경우)
-    if (data.containsKey('data')) {
-      final resumeData = data['data'] as Map<String, dynamic>;
-      return ResumeModel.fromJson(resumeData);
-    }
+    try {
+      // 새 구조 (data 필드에 저장된 경우)
+      if (data.containsKey('data')) {
+        final resumeData = data['data'] as Map<String, dynamic>;
+        return ResumeModel.fromJson(resumeData);
+      }
 
-    // 기존 구조 (resumeData 필드에 저장된 경우) - 하위 호환성
-    else if (data.containsKey('resumeData')) {
-      final resumeData = data['resumeData'] as Map<String, dynamic>;
-      return ResumeModel.fromJson(resumeData);
+      // 기존 구조 (resumeData 필드에 저장된 경우) - 하위 호환성
+      else if (data.containsKey('resumeData')) {
+        final resumeData = data['resumeData'] as Map<String, dynamic>;
+        return ResumeModel.fromJson(resumeData);
+      }
+    } catch (e) {
+      print('이력서 데이터 파싱 오류: $e');
     }
 
     return null;
@@ -96,9 +100,26 @@ class ResumeService {
 
   /// 이력서 조회
   ///
-  /// [userId]에 해당하는 사용자의 가장 최근 이력서를 조회합니다.
-  Future<ResumeModel?> getResume(String userId) async {
+  /// [resumeId]에 해당하는 이력서를 조회합니다.
+  Future<ResumeModel?> getResume(String resumeId) async {
     try {
+      print('이력서 조회 시작: $resumeId');
+      
+      // resumeId가 실제 문서 ID인 경우 (직접 문서 조회)
+      if (!resumeId.contains('_') || resumeId.contains('/')) {
+        final doc = await _firestoreService.getDocument(_resumesCollection, resumeId);
+        
+        if (doc != null) {
+          final resumeModel = _parseResumeData(doc);
+          print('문서 ID로 이력서 조회 성공: ${resumeModel?.position ?? "데이터 없음"}');
+          return resumeModel;
+        }
+      } 
+      
+      // userId로 조회하는 경우 (하위 호환성)
+      final currentUser = _firestoreService.getCurrentUser();
+      final String userId = resumeId.contains('_') ? resumeId.split('_')[0] : resumeId;
+      
       // 사용자의 이력서 목록 중 가장 최신 문서 조회
       final docs = await _firestoreService.queryWithIndexFallback(
         _resumesCollection,
@@ -108,11 +129,16 @@ class ResumeService {
         descending: true,
       );
 
-      if (docs.isEmpty) return null;
+      if (docs.isEmpty) {
+        print('해당 이력서 문서를 찾을 수 없음: $resumeId');
+        return null;
+      }
 
       // 가장 최신 이력서 반환
       final latestDoc = docs.first;
-      return _parseResumeData(latestDoc.data() as Map<String, dynamic>?);
+      final resumeModel = _parseResumeData(latestDoc.data() as Map<String, dynamic>?);
+      print('최신 이력서 조회 성공: ${resumeModel?.position ?? "데이터 없음"}');
+      return resumeModel;
     } catch (e) {
       print('이력서 조회 중 오류 발생: $e');
       throw Exception('이력서를 불러오는데 실패했습니다: $e');

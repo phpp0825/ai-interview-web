@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
-import '../services/auth_service.dart';
+import '../services/auth/auth_service.dart';
 import '../controllers/home_controller.dart';
 import '../widgets/dashboard/resume_widget.dart';
 import '../widgets/dashboard/interview_widget.dart';
@@ -112,7 +112,12 @@ class HomePageContent extends StatelessWidget {
   // 메인 본문 위젯
   Widget _buildBody(
       BuildContext context, HomeController controller, Color primaryColor) {
-    return Container(
+    // 화면 크기 확인
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 600;
+
+    // 기본 UI (큰 화면용)
+    Widget content = Container(
       color: Colors.white,
       child: SafeArea(
         child: Padding(
@@ -121,7 +126,7 @@ class HomePageContent extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Welcome to the Ainterview !',
+                'Welcome to the Ainterview!',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -131,24 +136,19 @@ class HomePageContent extends StatelessWidget {
               const SizedBox(height: 24),
               Expanded(
                 child: LayoutBuilder(builder: (context, constraints) {
-                  // 양쪽에 여백을 주기 위한 계산
                   final availableWidth = constraints.maxWidth;
-                  final sideMargin = availableWidth * 0.1; // 양쪽 각각 10%씩 여백
+                  final sideMargin = availableWidth * 0.1;
 
                   return Padding(
                     padding: EdgeInsets.symmetric(horizontal: sideMargin),
                     child: Column(
-                      // 위젯들이 Expanded 안에서 꽉 차게 배치
                       children: [
-                        // 이력서 작성 위젯 - 화면 높이의 1/3
                         Expanded(
                           child: ResumeWidget(color: primaryColor),
                         ),
-                        // 면접 연습 위젯 - 화면 높이의 1/3
                         Expanded(
                           child: InterviewWidget(color: primaryColor),
                         ),
-                        // 면접 보고서 위젯 - 화면 높이의 1/3
                         Expanded(
                           child: ReportWidget(color: primaryColor),
                         ),
@@ -162,37 +162,133 @@ class HomePageContent extends StatelessWidget {
         ),
       ),
     );
+
+    // 작은 화면일 경우 스크롤 가능한 UI로 대체
+    if (isSmallScreen) {
+      content = Container(
+        color: Colors.white,
+        child: SafeArea(
+          child: ScrollConfiguration(
+            behavior: NoScrollbarBehavior(),
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Welcome to the Ainterview!',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.deepPurple,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Column(
+                        children: [
+                          ResumeWidget(color: primaryColor),
+                          const SizedBox(height: 16),
+                          InterviewWidget(color: primaryColor),
+                          const SizedBox(height: 16),
+                          ReportWidget(color: primaryColor),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return content;
   }
 
   // 상단 네비게이션 메뉴
   Widget _buildNavMenu(
       BuildContext context, HomeController controller, Color primaryColor) {
-    return Row(
-      children: [
-        TextButton(
-          onPressed: () => controller.navigateToResumeView(context),
-          child: const Text(
-            '이력서 작성',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+    // 화면 너비에 따라 메뉴 표시 방식 결정
+    final screenWidth = MediaQuery.of(context).size.width;
+    final bool showFullMenu = screenWidth > 600;
+
+    if (showFullMenu) {
+      return Row(
+        children: [
+          TextButton(
+            onPressed: () => controller.navigateToResumeView(context),
+            child: const Text(
+              '이력서 작성',
+              style:
+                  TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
           ),
-        ),
-        TextButton(
-          onPressed: () =>
-              controller.showInterviewStartDialog(context, primaryColor),
-          child: const Text(
-            '면접 실행',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          TextButton(
+            onPressed: () =>
+                controller.showInterviewStartDialog(context, primaryColor),
+            child: const Text(
+              '면접 실행',
+              style:
+                  TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
           ),
-        ),
-        TextButton(
-          onPressed: () => controller.navigateToReportView(context),
-          child: const Text(
-            '면접 보고서',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          TextButton(
+            onPressed: () => controller.navigateToReportView(context),
+            child: const Text(
+              '면접 보고서',
+              style:
+                  TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
           ),
-        ),
-        const SizedBox(width: 16),
-      ],
+          const SizedBox(width: 16),
+        ],
+      );
+    } else {
+      return IconButton(
+        icon: const Icon(Icons.menu),
+        onPressed: () => _showMenuDialog(context, controller, primaryColor),
+      );
+    }
+  }
+
+  // 작은 화면에서 메뉴 다이얼로그 표시
+  void _showMenuDialog(
+      BuildContext context, HomeController controller, Color primaryColor) {
+    showDialog(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('메뉴'),
+        children: [
+          ListTile(
+            leading: const Icon(Icons.description),
+            title: const Text('이력서 작성'),
+            onTap: () {
+              Navigator.pop(context);
+              controller.navigateToResumeView(context);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.videocam),
+            title: const Text('면접 실행'),
+            onTap: () {
+              Navigator.pop(context);
+              controller.showInterviewStartDialog(context, primaryColor);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.assessment),
+            title: const Text('면접 보고서'),
+            onTap: () {
+              Navigator.pop(context);
+              controller.navigateToReportView(context);
+            },
+          ),
+        ],
+      ),
     );
   }
 }

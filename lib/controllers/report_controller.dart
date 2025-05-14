@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/report_model.dart';
-import '../services/report_service.dart';
+import '../services/report/report_service.dart';
 import '../views/resume_view.dart';
 
 class ReportController extends ChangeNotifier {

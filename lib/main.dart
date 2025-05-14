@@ -3,11 +3,13 @@ import 'package:responsive_framework/responsive_framework.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
-import 'services/auth_service.dart';
+import 'firebase_options.dart';
+import 'services/auth/auth_service.dart';
 import 'views/login_view.dart';
 import 'views/home_view.dart';
 import 'views/landing_view.dart';
 import 'views/report_list_view.dart';
+import 'views/http_interview_view.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -78,6 +80,7 @@ class MyApp extends StatelessWidget {
             '/home': (context) => const HomePage(),
             '/landing': (context) => const LandingView(),
             '/report-list': (context) => const ReportListView(),
+            '/livestream': (context) => const HttpInterviewView(),
           },
           initialRoute: '/',
           theme: ThemeData(

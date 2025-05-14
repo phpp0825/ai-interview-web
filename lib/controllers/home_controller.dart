@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../services/auth_service.dart';
-import '../services/resume_service.dart';
+import '../services/auth/auth_service.dart';
+import '../services/resume/resume_service.dart';
 import '../views/resume_view.dart';
-import '../views/interview_view.dart';
 import '../views/report_view.dart';
+import '../views/http_interview_view.dart';
 
 /// 홈 화면 컨트롤러
 ///
@@ -52,7 +52,7 @@ class HomeController extends ChangeNotifier {
   void navigateToInterviewView(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const InterviewView()),
+      MaterialPageRoute(builder: (context) => const HttpInterviewView()),
     );
   }
 
@@ -61,41 +61,88 @@ class HomeController extends ChangeNotifier {
     Navigator.pushNamed(context, '/report-list');
   }
 
-  // 면접 시작 전 다이얼로그 표시
-  void showInterviewStartDialog(BuildContext context, Color primaryColor) {
+  // 면접 시작 메서드 - 이력서 확인 후 면접 진행
+  void showInterviewStartDialog(
+      BuildContext context, Color primaryColor) async {
+    try {
+      // 로딩 표시
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return const AlertDialog(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('이력서 정보 확인 중...'),
+              ],
+            ),
+          );
+        },
+      );
+
+      // 현재 사용자의 이력서 확인
+      final existingResume = await _resumeService.getCurrentUserResume();
+
+      // 로딩 다이얼로그 닫기
+      Navigator.of(context).pop();
+
+      if (existingResume != null) {
+        // 이력서가 있으면 면접 화면으로 이동
+        if (context.mounted) {
+          navigateToInterviewView(context);
+        }
+      } else {
+        // 이력서가 없으면 이력서 작성 안내 다이얼로그
+        if (context.mounted) {
+          _showResumeRequiredDialog(context, primaryColor);
+        }
+      }
+    } catch (e) {
+      // 오류 발생 시 로딩 다이얼로그 닫기
+      if (context.mounted) {
+        Navigator.of(context).pop();
+        // 오류 메시지 표시
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('이력서 정보 확인 중 오류가 발생했습니다: $e')),
+        );
+      }
+      _setError('이력서 확인 중 오류: $e');
+    }
+  }
+
+  // 이력서가 필요하다는 다이얼로그
+  void _showResumeRequiredDialog(BuildContext context, Color primaryColor) {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          title: const Text('면접 시작하기'),
-          content: const Text(
-            '면접을 시작하기 전에 이력서 정보가 필요합니다. 이력서를 작성하시겠습니까?',
+      barrierDismissible: true,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('이력서 필요'),
+        content: const Text('면접을 진행하기 위해서는 이력서 정보가 필요합니다. 먼저 이력서를 작성해주세요.'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // 취소
+            },
+            child: const Text('취소'),
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                navigateToInterviewView(context);
-              },
-              child: const Text('이력서 없이 진행'),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // 이력서 작성 페이지로 이동
+              navigateToResumeView(context);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
             ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                navigateToResumeView(context);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: primaryColor,
-                elevation: 1,
-                side: BorderSide(color: primaryColor),
-              ),
-              child: const Text('이력서 작성하기'),
-            ),
-          ],
-        );
-      },
+            child: const Text('이력서 작성하기'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -103,6 +150,7 @@ class HomeController extends ChangeNotifier {
   void showCreateReportDialog(BuildContext context) {
     showDialog(
       context: context,
+      barrierDismissible: true,
       builder: (BuildContext context) {
         return AlertDialog(
           backgroundColor: Colors.white,

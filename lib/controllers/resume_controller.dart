@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import '../services/resume/resume_service.dart';
 import '../models/resume_model.dart';
-import '../services/resume_service.dart';
 
 class ResumeController extends ChangeNotifier {
   // 의존성

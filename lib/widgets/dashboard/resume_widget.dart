@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../views/resume_view.dart';
+import '../../services/resume/resume_service.dart';
 
 class ResumeWidget extends StatelessWidget {
   final Color color;
@@ -18,11 +19,111 @@ class ResumeWidget extends StatelessWidget {
       imagePath: 'assets/images/resume_image.png',
       color: color,
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const ResumeView()),
-        );
+        _checkExistingResumeAndNavigate(context);
       },
+    );
+  }
+
+  // 이력서 존재 여부 확인 후 이동
+  Future<void> _checkExistingResumeAndNavigate(BuildContext context) async {
+    try {
+      // 로딩 표시
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return const AlertDialog(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('이력서 정보 확인 중...'),
+              ],
+            ),
+          );
+        },
+      );
+
+      // 이력서 서비스 인스턴스 생성
+      final resumeService = ResumeService();
+
+      // 현재 사용자의 이력서 확인
+      final existingResume = await resumeService.getCurrentUserResume();
+
+      // 로딩 다이얼로그 닫기
+      Navigator.of(context).pop();
+
+      if (existingResume != null) {
+        // 이력서가 이미 있는 경우
+        if (context.mounted) {
+          _showResumeExistsDialog(context);
+        }
+      } else {
+        // 이력서가 없는 경우 바로 이력서 작성 화면으로 이동
+        if (context.mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ResumeView()),
+          );
+        }
+      }
+    } catch (e) {
+      // 오류 발생 시 로딩 다이얼로그 닫기
+      Navigator.of(context).pop();
+      // 오류 메시지 표시
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('이력서 정보 확인 중 오류가 발생했습니다: $e')),
+        );
+      }
+    }
+  }
+
+  // 이력서가 이미 존재할 때 표시하는 다이얼로그
+  void _showResumeExistsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('이력서 정보'),
+        content: const Text('이미 작성된 이력서가 있습니다. 어떻게 하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // 취소
+            },
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // 기존 이력서 수정 페이지로 이동 (현재는 새 이력서 작성과 동일)
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ResumeView()),
+              );
+            },
+            child: const Text('기존 이력서 사용하기'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // 새 이력서 작성 페이지로 이동
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ResumeView()),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: color,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('새 이력서 작성'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -34,8 +135,20 @@ class ResumeWidget extends StatelessWidget {
     required Color color,
     required VoidCallback onTap,
   }) {
-    // 위젯 내부에서 이미지 크기 설정
-    const double imageHeight = 200.0;
+    // 화면 너비에 따라 스타일 조정
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 600;
+
+    // 반응형 스타일 설정
+    final double cardHeight = isSmallScreen ? 180 : 220;
+    final double imageHeight = isSmallScreen ? 140 : 200;
+    final double fontSize = isSmallScreen ? 18 : 22;
+    final double descFontSize = isSmallScreen ? 12 : 14;
+    final int maxLines = isSmallScreen ? 2 : 3;
+    final double titleSpace = isSmallScreen ? 8 : 12;
+    final double buttonSpace = isSmallScreen ? 12 : 20;
+    final double padding = isSmallScreen ? 12 : 20;
+    final double buttonPadding = isSmallScreen ? 8 : 12;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
@@ -45,7 +158,7 @@ class ResumeWidget extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(20),
           child: Container(
-            height: 240,
+            height: cardHeight,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(20),
@@ -73,14 +186,14 @@ class ResumeWidget extends StatelessWidget {
                       ),
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.all(12.0),
+                      padding: EdgeInsets.all(padding / 2),
                       child: Container(
                         width: double.infinity, // 컨테이너 너비를 최대로 설정
                         height: imageHeight,
                         alignment: Alignment.center,
                         child: Image.asset(
                           imagePath,
-                          fit: BoxFit.fitHeight, // 높이에 맞게 비율 유지
+                          fit: BoxFit.contain, // 이미지가 잘리지 않도록 설정
                           height: imageHeight,
                           errorBuilder: (context, error, stackTrace) {
                             print('이미지 로드 오류: $error');
@@ -90,13 +203,16 @@ class ResumeWidget extends StatelessWidget {
                                 children: [
                                   Icon(
                                     Icons.broken_image,
-                                    size: 50,
+                                    size: isSmallScreen ? 40 : 50,
                                     color: Colors.grey,
                                   ),
-                                  SizedBox(height: 8),
+                                  SizedBox(height: isSmallScreen ? 4 : 8),
                                   Text(
                                     '이미지를 불러올 수 없습니다',
-                                    style: TextStyle(color: Colors.grey),
+                                    style: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: isSmallScreen ? 10 : 12,
+                                    ),
                                     textAlign: TextAlign.center,
                                   ),
                                 ],
@@ -113,7 +229,7 @@ class ResumeWidget extends StatelessWidget {
                 Expanded(
                   flex: 6,
                   child: Padding(
-                    padding: const EdgeInsets.all(20),
+                    padding: EdgeInsets.all(padding),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -122,24 +238,24 @@ class ResumeWidget extends StatelessWidget {
                         Text(
                           title,
                           style: TextStyle(
-                            fontSize: 22,
+                            fontSize: fontSize,
                             fontWeight: FontWeight.bold,
                             color: color,
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        SizedBox(height: titleSpace),
                         // 설명
                         Text(
                           description,
-                          maxLines: 3,
+                          maxLines: maxLines,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 14,
+                          style: TextStyle(
+                            fontSize: descFontSize,
                             color: Colors.black54,
                             height: 1.5,
                           ),
                         ),
-                        const SizedBox(height: 20),
+                        SizedBox(height: buttonSpace),
                         // 버튼
                         ElevatedButton(
                           onPressed: onTap,
@@ -147,19 +263,19 @@ class ResumeWidget extends StatelessWidget {
                             backgroundColor: color,
                             foregroundColor: Colors.white,
                             elevation: 0,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 12,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: buttonPadding * 2,
+                              vertical: buttonPadding,
                             ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30),
                             ),
                           ),
-                          child: const Text(
+                          child: Text(
                             '시작하기',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 15,
+                              fontSize: isSmallScreen ? 14 : 15,
                             ),
                           ),
                         ),

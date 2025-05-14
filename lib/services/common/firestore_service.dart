@@ -101,54 +101,54 @@ class FirestoreService {
       String collection, String field, dynamic value,
       {String? orderField, bool descending = false}) async {
     try {
-      try {
-        // 인덱스를 사용하는 쿼리 시도
-        if (orderField != null) {
-          final querySnapshot = await _firestore
-              .collection(collection)
-              .where(field, isEqualTo: value)
-              .orderBy(orderField, descending: descending)
-              .get();
-          return querySnapshot.docs;
-        } else {
-          final querySnapshot = await _firestore
-              .collection(collection)
-              .where(field, isEqualTo: value)
-              .get();
-          return querySnapshot.docs;
-        }
-      } catch (indexError) {
-        print('인덱스 오류 발생, 대체 쿼리 사용: $indexError');
-        // 인덱스가 없는 경우 대체 쿼리 실행
-        final querySnapshot = await _firestore
-            .collection(collection)
-            .where(field, isEqualTo: value)
-            .get();
+      List<DocumentSnapshot> results = [];
 
-        if (orderField == null) {
-          return querySnapshot.docs;
-        }
+      // 1. 기본 쿼리 (where 조건만 사용)
+      final QuerySnapshot baseQuery = await _firestore
+          .collection(collection)
+          .where(field, isEqualTo: value)
+          .get();
 
-        // 클라이언트에서 정렬
-        final sortedDocs = querySnapshot.docs.toList()
-          ..sort((a, b) {
-            final aData = a.data() as Map<String, dynamic>;
-            final bData = b.data() as Map<String, dynamic>;
+      results = baseQuery.docs;
 
-            // 중첩 필드 처리 (예: "metadata.createdAt")
-            dynamic aValue = _getNestedField(aData, orderField);
-            dynamic bValue = _getNestedField(bData, orderField);
+      // 2. 정렬이 필요한 경우, 클라이언트 측에서 정렬 수행
+      if (orderField != null && results.isNotEmpty) {
+        results.sort((a, b) {
+          final aData = a.data() as Map<String, dynamic>;
+          final bData = b.data() as Map<String, dynamic>;
 
-            if (aValue == null && bValue == null) return 0;
-            if (aValue == null) return descending ? -1 : 1;
-            if (bValue == null) return descending ? 1 : -1;
+          // 중첩 필드 처리 (예: "metadata.createdAt")
+          dynamic aValue = _getNestedField(aData, orderField);
+          dynamic bValue = _getNestedField(bData, orderField);
 
-            int result = aValue.compareTo(bValue);
+          // null 처리
+          if (aValue == null && bValue == null) return 0;
+          if (aValue == null) return descending ? -1 : 1;
+          if (bValue == null) return descending ? 1 : -1;
+
+          // 비교
+          try {
+            int result = 0;
+            if (aValue is Comparable && bValue is Comparable) {
+              result = aValue.compareTo(bValue);
+            } else {
+              // Timestamp 비교 등 특수 케이스
+              if (aValue is Timestamp && bValue is Timestamp) {
+                result = aValue.compareTo(bValue);
+              } else {
+                // 문자열로 변환하여 비교 (안전한 대체 방법)
+                result = aValue.toString().compareTo(bValue.toString());
+              }
+            }
             return descending ? -result : result;
-          });
-
-        return sortedDocs;
+          } catch (e) {
+            print('정렬 중 오류 발생: $e');
+            return 0; // 오류 시 순서 유지
+          }
+        });
       }
+
+      return results;
     } catch (e) {
       print('Firestore 쿼리 실행 중 오류 발생: $e');
       throw Exception('Firestore 쿼리 실행에 실패했습니다: $e');

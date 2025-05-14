@@ -61,6 +61,16 @@ dependencies:
   google_fonts: ^6.2.1
   flutter_web_auth: ^0.6.0
 
+  # 웹소켓 통신 패키지
+  web_socket_channel: ^2.4.0
+
+  # 카메라 관련 패키지
+  camera: ^0.11.1
+  camera_web: ^0.3.2+3
+  ffmpeg_kit_flutter: ^6.0.3
+  record: ^6.0.0
+  path_provider: ^2.1.5
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

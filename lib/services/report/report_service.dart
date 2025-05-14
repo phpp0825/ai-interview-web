@@ -2,8 +2,8 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../models/report_model.dart';
-import '../models/resume_model.dart';
+import '../../models/report_model.dart';
+import '../../models/resume_model.dart';
 
 /// 리포트 관련 서비스 기능을 제공하는 클래스
 ///
