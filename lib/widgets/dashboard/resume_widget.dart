@@ -98,17 +98,6 @@ class ResumeWidget extends StatelessWidget {
             },
             child: const Text('취소'),
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // 기존 이력서 수정 페이지로 이동 (현재는 새 이력서 작성과 동일)
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const ResumeView()),
-              );
-            },
-            child: const Text('기존 이력서 사용하기'),
-          ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
