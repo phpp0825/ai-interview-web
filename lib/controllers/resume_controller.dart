@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
-import '../services/resume/resume_service.dart';
+import '../services/resume/interfaces/resume_service_interface.dart';
 import '../models/resume_model.dart';
+import '../core/di/service_locator.dart';
+import '../services/report/interfaces/report_service_interface.dart';
 
+/// 이력서 컨트롤러
+///
+/// 이력서 관련 UI 상태 관리 및 사용자 상호작용을 처리합니다.
+/// 비즈니스 로직은 서비스 계층으로 위임합니다.
 class ResumeController extends ChangeNotifier {
   // 의존성
-  final ResumeService _resumeService = ResumeService();
+  final IResumeService _resumeService;
+  final IReportService _reportService;
 
   // 모델
   final ResumeModel _model = ResumeModel();
@@ -86,26 +93,56 @@ class ResumeController extends ChangeNotifier {
   final List<String> totalGpas = ['4.0', '4.3', '4.5'];
 
   // 초기화
-  ResumeController() {
+  ResumeController()
+      : _resumeService = serviceLocator<IResumeService>(),
+        _reportService = serviceLocator<IReportService>() {
     // 이력서 생성 모드만 사용하므로 초기화 시 기존 데이터를 로드하지 않음
+  }
+
+  /// 상태 업데이트 유틸리티 메서드
+  void _updateState({
+    bool? isLoading,
+    String? error,
+    bool? isLoadingFromServer,
+    bool? resumeExistsOnServer,
+  }) {
+    if (isLoading != null) _isLoading = isLoading;
+    if (error != null) _error = error;
+    if (isLoadingFromServer != null) _isLoadingFromServer = isLoadingFromServer;
+    if (resumeExistsOnServer != null)
+      _resumeExistsOnServer = resumeExistsOnServer;
+
+    notifyListeners();
+  }
+
+  /// 모델 업데이트 후 상태 반영
+  void _updateModelAndNotify() {
+    notifyListeners();
+  }
+
+  /// 에러 처리 유틸리티
+  void _handleError(String message, dynamic error) {
+    final errorMsg = '$message: $error';
+    print(errorMsg);
+    _updateState(error: errorMsg);
   }
 
   // 필드 값 업데이트
   void updateField(String value) {
     _model.field = value;
-    notifyListeners();
+    _updateModelAndNotify();
   }
 
   // 직무 값 업데이트
   void updatePosition(String value) {
     _model.position = value;
-    notifyListeners();
+    _updateModelAndNotify();
   }
 
   // 경력 값 업데이트
   void updateExperience(String value) {
     _model.experience = value;
-    notifyListeners();
+    _updateModelAndNotify();
   }
 
   // 면접 유형 업데이트
@@ -117,7 +154,7 @@ class ResumeController extends ChangeNotifier {
     } else {
       _model.interviewTypes.remove(type);
     }
-    notifyListeners();
+    _updateModelAndNotify();
   }
 
   // 학력 정보 업데이트
@@ -145,20 +182,20 @@ class ResumeController extends ChangeNotifier {
         _model.education.totalGpa = value;
         break;
     }
-    notifyListeners();
+    _updateModelAndNotify();
   }
 
   // 자격증 추가
   void addCertificate() {
     _model.certificates.add(Certificate());
-    notifyListeners();
+    _updateModelAndNotify();
   }
 
   // 자격증 제거
   void removeCertificate(int index) {
     if (index >= 0 && index < _model.certificates.length) {
       _model.certificates.removeAt(index);
-      notifyListeners();
+      _updateModelAndNotify();
     }
   }
 
@@ -180,7 +217,7 @@ class ResumeController extends ChangeNotifier {
           certificate.score = value;
           break;
       }
-      notifyListeners();
+      _updateModelAndNotify();
     }
   }
 
@@ -200,7 +237,7 @@ class ResumeController extends ChangeNotifier {
         );
         break;
     }
-    notifyListeners();
+    _updateModelAndNotify();
   }
 
   // 자기소개서 개별 필드 업데이트 메서드
@@ -209,7 +246,7 @@ class ResumeController extends ChangeNotifier {
       motivation: value,
       strength: _model.selfIntroduction.strength,
     );
-    notifyListeners();
+    _updateModelAndNotify();
   }
 
   void updateSelfIntroductionStrength(String value) {
@@ -217,7 +254,7 @@ class ResumeController extends ChangeNotifier {
       motivation: _model.selfIntroduction.motivation,
       strength: value,
     );
-    notifyListeners();
+    _updateModelAndNotify();
   }
 
   // 이력서 저장
@@ -226,8 +263,7 @@ class ResumeController extends ChangeNotifier {
       // 이력서 데이터를 서비스를 통해 Firestore에 저장
       return await _resumeService.saveResumeToFirestore(_model);
     } catch (e) {
-      print('이력서 저장 중 오류 발생: $e');
-      _setError('이력서 저장에 실패했습니다: $e');
+      _handleError('이력서 저장에 실패했습니다', e);
       return false;
     }
   }
@@ -235,17 +271,23 @@ class ResumeController extends ChangeNotifier {
   // 이력서 정보로 리포트 생성
   Future<String?> createReportWithResume() async {
     try {
-      setLoading(true);
+      _updateState(isLoading: true, error: null);
 
-      // ResumeService를 통해 이력서 정보로 리포트 생성
-      final String reportId =
-          await _resumeService.createReportWithResume(_model);
+      // 이력서 저장 후 리포트 서비스에 전달
+      await _resumeService.saveResumeToFirestore(_model);
 
-      setLoading(false);
-      return reportId;
+      // 리포트 서비스를 통해 리포트 생성
+      final report = await _reportService.createReport(
+        interviewId: 'interview_${DateTime.now().millisecondsSinceEpoch}',
+        resumeId: _model.resume_id,
+        resumeData: _model.toJson(),
+      );
+
+      _updateState(isLoading: false);
+      return report?.id;
     } catch (e) {
-      _setError('리포트를 생성하는데 실패했습니다: $e');
-      setLoading(false);
+      _handleError('리포트를 생성하는데 실패했습니다', e);
+      _updateState(isLoading: false);
       return null;
     }
   }
@@ -267,39 +309,47 @@ class ResumeController extends ChangeNotifier {
     _model.position = '백엔드 개발자';
     _model.experience = '신입';
     _model.interviewTypes = ['직무면접'];
-    _model.certificates = [];
+    _model.certificates.clear();
     _model.education = Education();
     _model.selfIntroduction = SelfIntroduction();
-    notifyListeners();
+
+    _updateModelAndNotify();
   }
 
   // 로딩 상태 설정
   void setLoading(bool loading) {
-    _isLoading = loading;
-    notifyListeners();
-  }
-
-  // 오류 상태 설정
-  void _setError(String? errorMessage) {
-    _error = errorMessage;
-    notifyListeners();
+    _updateState(isLoading: loading);
   }
 
   // 현재 이력서 모델 조회
   ResumeModel getCurrentResume() {
     return ResumeModel(
+      resume_id: _model.resume_id,
       field: field,
       position: position,
       experience: experience,
-      interviewTypes: interviewTypes,
-      certificates: certificates,
-      education: education,
-      selfIntroduction: hasPersonalityInterview
-          ? SelfIntroduction(
-              motivation: selfIntroduction.motivation,
-              strength: selfIntroduction.strength,
-            )
-          : null,
+      interviewTypes: List<String>.from(interviewTypes),
+      certificates: certificates
+          .map((c) => Certificate(
+                name: c.name,
+                issuer: c.issuer,
+                date: c.date,
+                score: c.score,
+              ))
+          .toList(),
+      education: Education(
+        school: education.school,
+        major: education.major,
+        degree: education.degree,
+        startDate: education.startDate,
+        endDate: education.endDate,
+        gpa: education.gpa,
+        totalGpa: education.totalGpa,
+      ),
+      selfIntroduction: SelfIntroduction(
+        motivation: selfIntroduction.motivation,
+        strength: selfIntroduction.strength,
+      ),
     );
   }
 }

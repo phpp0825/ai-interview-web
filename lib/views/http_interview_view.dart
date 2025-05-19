@@ -9,7 +9,9 @@ import '../controllers/interview_controller.dart';
 /// HTTP 기반 인터뷰 화면
 /// HTTP를 사용하여 비디오와 오디오 데이터를 서버로 전송합니다.
 class HttpInterviewView extends StatefulWidget {
-  const HttpInterviewView({Key? key}) : super(key: key);
+  final String? selectedResumeId;
+
+  const HttpInterviewView({Key? key, this.selectedResumeId}) : super(key: key);
 
   @override
   _HttpInterviewViewState createState() => _HttpInterviewViewState();
@@ -33,32 +35,73 @@ class _HttpInterviewViewState extends State<HttpInterviewView> {
   /// 컨트롤러 초기화
   Future<void> _initController() async {
     try {
+      print('HttpInterviewView: 컨트롤러 초기화 시작');
       setState(() {
         _isLoading = true;
+        _errorMessage = null;
       });
 
+      print('HttpInterviewView: InterviewController.create() 호출');
       final controller = await InterviewController.create();
 
+      print(
+          'HttpInterviewView: InterviewController 생성 ${controller != null ? "성공" : "실패"}');
+
       // 위젯이 아직 마운트 상태인지 확인
-      if (!mounted) return;
+      if (!mounted) {
+        print('HttpInterviewView: 위젯이 언마운트되어 초기화 중단');
+        return;
+      }
+
+      // 컨트롤러가 null인 경우 처리
+      if (controller == null) {
+        print('HttpInterviewView: 컨트롤러가 null 값으로 반환됨');
+        setState(() {
+          _errorMessage = '면접 컨트롤러를 초기화할 수 없습니다. 다시 시도해 주세요.';
+          _isLoading = false;
+        });
+        return;
+      }
 
       setState(() {
         _controller = controller;
         _isLoading = false;
       });
 
-      // 이력서가 한 개 이상 있으면 선택 다이얼로그 표시
-      if (_controller!.resumeList.isNotEmpty && !_resumeDialogShown) {
+      print(
+          'HttpInterviewView: 컨트롤러 초기화 완료, 이력서 목록 크기: ${_controller?.resumeList.length ?? 0}');
+
+      // 전달받은 이력서 ID가 있는 경우, 해당 이력서 선택
+      if (widget.selectedResumeId != null && mounted && _controller != null) {
+        print(
+            'HttpInterviewView: 전달받은 이력서 ID로 이력서 선택: ${widget.selectedResumeId}');
+        await _controller!.selectResume(widget.selectedResumeId!);
+        _resumeDialogShown = true;
+        return;
+      }
+
+      // 이력서 선택 다이얼로그를 항상 표시 (이력서가 없는 경우는 내부에서 처리)
+      if (_controller != null && !_resumeDialogShown) {
+        print('HttpInterviewView: 이력서 선택 다이얼로그 예약');
         _resumeDialogShown = true;
         WidgetsBinding.instance.addPostFrameCallback((_) {
+          print('HttpInterviewView: 이력서 선택 다이얼로그 표시');
           _showResumeSelectionDialog();
         });
+      } else {
+        print('HttpInterviewView: 이력서 선택 다이얼로그를 표시할 수 없음');
       }
     } catch (e) {
+      print('HttpInterviewView: 컨트롤러 초기화 중 예외 발생: $e');
       if (mounted) {
         setState(() {
           _errorMessage = '컨트롤러 초기화 중 오류가 발생했습니다: $e';
           _isLoading = false;
+        });
+
+        // 에러 메시지 표시
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _showErrorDialog(_errorMessage!);
         });
       }
     }
@@ -72,9 +115,14 @@ class _HttpInterviewViewState extends State<HttpInterviewView> {
   /// 이력서 선택 다이얼로그 표시
   void _showResumeSelectionDialog() {
     // 컨트롤러가 초기화되지 않았으면 리턴
-    if (_controller == null) return;
+    if (_controller == null) {
+      print('HttpInterviewView: 컨트롤러가 초기화되지 않아 다이얼로그를 표시할 수 없음');
+      return;
+    }
 
+    // 이력서가 없는 경우 새 이력서 작성 안내
     if (_controller!.resumeList.isEmpty) {
+      print('HttpInterviewView: 이력서 목록이 비어 있어 작성 안내 다이얼로그 표시');
       _showCreateResumeDialog();
       return;
     }
@@ -84,8 +132,12 @@ class _HttpInterviewViewState extends State<HttpInterviewView> {
     final dialogWidth = screenSize.width * 0.5; // 화면 너비의 50%로 제한
     final dialogHeight = screenSize.height * 0.7; // 화면 높이의 70%로 설정
 
+    print(
+        'HttpInterviewView: 이력서 선택 다이얼로그 표시 (${_controller!.resumeList.length}개 항목)');
+
     showDialog(
       context: context,
+      barrierDismissible: false, // 배경 탭으로 닫기 불가능
       builder: (context) => Dialog(
         // 다이얼로그 크기 제한
         insetPadding: EdgeInsets.symmetric(
@@ -102,14 +154,53 @@ class _HttpInterviewViewState extends State<HttpInterviewView> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // 제목
-              const Text(
-                '이력서 선택',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+              // 헤더 영역
+              Container(
+                padding: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.description, color: Colors.deepPurple),
+                    const SizedBox(width: 8),
+                    const Text(
+                      '이력서 선택',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
               ),
+
+              const SizedBox(height: 16),
+
+              // 안내 텍스트
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.amber.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.amber.shade800),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        '면접을 시작하기 전에 먼저 이력서를 선택해주세요. 이력서는 면접 질문과 분석에 사용됩니다.',
+                        style: TextStyle(fontSize: 14),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
               const SizedBox(height: 16),
 
               // 이력서 목록 (Expanded로 감싸 남은 공간을 차지하도록 함)
@@ -122,25 +213,61 @@ class _HttpInterviewViewState extends State<HttpInterviewView> {
                     return Card(
                       elevation: 2,
                       margin: const EdgeInsets.symmetric(vertical: 4),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                       child: ListTile(
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16,
                           vertical: 8,
                         ),
+                        leading: CircleAvatar(
+                          backgroundColor: Colors.deepPurple.shade100,
+                          child: const Icon(Icons.business_center,
+                              color: Colors.deepPurple),
+                        ),
                         title: Text(
-                          resume['position'],
+                          resume['position'] ?? '직무 정보 없음',
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const SizedBox(height: 4),
-                            Text(resume['field']),
+                            Text(resume['field'] ?? '분야 정보 없음'),
+                            Text(resume['experience'] ?? '경력 정보 없음',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade700,
+                                )),
                           ],
                         ),
+                        trailing: ElevatedButton(
+                          onPressed: () async {
+                            print(
+                                'HttpInterviewView: 이력서 선택됨 - ${resume['id']}');
+                            await _controller!.selectResume(resume['id']);
+                            if (mounted) {
+                              Navigator.pop(context);
+                              _showSnackBar('이력서가 선택되었습니다');
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.deepPurple,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                          ),
+                          child: const Text('선택'),
+                        ),
                         onTap: () async {
+                          print('HttpInterviewView: 이력서 선택됨 - ${resume['id']}');
                           await _controller!.selectResume(resume['id']);
-                          Navigator.pop(context);
+                          if (mounted) {
+                            Navigator.pop(context);
+                            _showSnackBar('이력서가 선택되었습니다');
+                          }
                         },
                       ),
                     );
@@ -150,22 +277,35 @@ class _HttpInterviewViewState extends State<HttpInterviewView> {
 
               // 버튼 영역
               const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _showCreateResumeDialog();
-                    },
-                    child: const Text('새 이력서 작성'),
+              Container(
+                padding: const EdgeInsets.only(top: 16),
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(color: Colors.grey.shade300, width: 1),
                   ),
-                  const SizedBox(width: 8),
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('닫기'),
-                  ),
-                ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.add),
+                      label: const Text('새 이력서'),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _showCreateResumeDialog();
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.deepPurple,
+                        side: const BorderSide(color: Colors.deepPurple),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('닫기'),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),

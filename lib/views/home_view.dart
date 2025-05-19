@@ -35,17 +35,8 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 화면 초기화 시 홈 컨트롤러 생성
-    return ChangeNotifierProvider(
-      create: (context) {
-        // 앱 상태 관리 컨트롤러 생성
-        final authService = Provider.of<AuthService>(context, listen: false);
-
-        // 홈 컨트롤러 생성 및 반환
-        return HomeController(authService);
-      },
-      child: const HomePageContent(),
-    );
+    // 앱에서 전역으로 제공하는 HomeController 사용
+    return const HomePageContent();
   }
 }
 

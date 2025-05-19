@@ -2,12 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/report_model.dart';
-import '../services/report/report_service.dart';
+import '../services/report/interfaces/report_service_interface.dart';
+import '../core/di/service_locator.dart';
 import '../views/resume_view.dart';
 
+/// 리포트 컨트롤러
+///
+/// 리포트 관련 UI 상태 관리 및 사용자 상호작용을 처리합니다.
+/// 비즈니스 로직은 서비스 계층으로 위임합니다.
 class ReportController extends ChangeNotifier {
   // 의존성
-  final ReportService _reportService = ReportService();
+  final IReportService _reportService;
 
   // 상태 변수
   ReportModel? _reportData;
@@ -30,7 +35,7 @@ class ReportController extends ChangeNotifier {
   bool get isCreatingReport => _isCreatingReport;
 
   // 생성자
-  ReportController() {
+  ReportController() : _reportService = serviceLocator<IReportService>() {
     loadReportList();
   }
 
@@ -41,7 +46,7 @@ class ReportController extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      _reportList = await _reportService.getCurrentUserReportSummaries();
+      _reportList = await _reportService.getCurrentUserReportList();
 
       _isLoadingReports = false;
       notifyListeners();
@@ -131,10 +136,11 @@ class ReportController extends ChangeNotifier {
       _isCreatingReport = true;
       notifyListeners();
 
-      final reportId = await _reportService.createInterviewReport(
-        interviewId,
-        resumeId,
-        resumeData,
+      // 서비스에 위임
+      final report = await _reportService.createReport(
+        interviewId: interviewId,
+        resumeId: resumeId,
+        resumeData: resumeData,
       );
 
       // 리포트 목록을 새로고침
@@ -142,7 +148,7 @@ class ReportController extends ChangeNotifier {
 
       _isCreatingReport = false;
       notifyListeners();
-      return reportId;
+      return report?.id;
     } catch (e) {
       _setError('면접 보고서 생성 중 오류가 발생했습니다: $e');
       _isCreatingReport = false;
@@ -199,20 +205,23 @@ class ReportController extends ChangeNotifier {
     }
   }
 
-  // 리포트 삭제
+  /// 보고서 삭제
+  ///
+  /// [reportId] 보고서를 삭제합니다.
   Future<bool> deleteReport(String reportId) async {
     try {
       _setLoading(true);
       final result = await _reportService.deleteReport(reportId);
+
+      // 삭제가 성공하면 목록 새로고침
       if (result) {
-        // 삭제 성공 시 목록에서도 제거
-        _reportList.removeWhere((report) => report['id'] == reportId);
+        await loadReportList();
       }
+
       _setLoading(false);
-      notifyListeners();
       return result;
     } catch (e) {
-      _setError('리포트 삭제 중 오류가 발생했습니다: $e');
+      _setError('보고서 삭제 중 오류가 발생했습니다: $e');
       _setLoading(false);
       return false;
     }
@@ -279,18 +288,19 @@ class ReportController extends ChangeNotifier {
     });
   }
 
-  // 로딩 상태 변경
+  // 로딩 상태 설정
   void _setLoading(bool loading) {
     _isLoading = loading;
     notifyListeners();
   }
 
-  // 에러 설정
+  // 오류 메시지 설정
   void _setError(String? errorMessage) {
     _error = errorMessage;
     notifyListeners();
   }
 
+  // 컨트롤러 리소스 해제
   @override
   void dispose() {
     _videoPlayerController?.dispose();

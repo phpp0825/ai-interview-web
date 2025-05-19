@@ -54,82 +54,102 @@ class InterviewVideoPreview extends StatelessWidget {
 
   /// 카메라 로딩 화면
   Widget _buildLoadingView() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.videocam_off, size: 48, color: Colors.grey),
-          const SizedBox(height: 16),
-          const Text(
-            '카메라를 초기화하는 중...',
-            style: TextStyle(fontSize: 16),
-          ),
-          const SizedBox(height: 16),
-          const CircularProgressIndicator(),
-        ],
+    return Container(
+      color: Colors.black,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.videocam_off, size: 48, color: Colors.white70),
+            const SizedBox(height: 16),
+            const Text(
+              '카메라를 초기화하는 중...',
+              style: TextStyle(fontSize: 16, color: Colors.white),
+            ),
+            const SizedBox(height: 16),
+            CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   /// 에러 표시 화면
   Widget _buildErrorView(String message) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
-          const SizedBox(height: 16),
-          Text(
-            message,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.refresh),
-            label: const Text('다시 시도'),
-            onPressed: () {
-              cameraService.initialize();
-            },
-          ),
-        ],
+    return Container(
+      color: Colors.black,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 48, color: Colors.white70),
+            const SizedBox(height: 16),
+            Text(
+              message,
+              style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.refresh),
+              label: const Text('다시 시도'),
+              onPressed: () {
+                cameraService.initialize();
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
 
   /// 카메라 없음 화면
   Widget _buildNoCameraView() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.videocam_off, size: 48, color: Colors.grey),
-          const SizedBox(height: 16),
-          const Text(
-            '카메라를 사용할 수 없습니다',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            '웹 브라우저에서 카메라 권한을 허용해주세요',
-            style: TextStyle(fontSize: 14, color: Colors.grey),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.refresh),
-            label: const Text('카메라 다시 시도'),
-            onPressed: () {
-              // 카메라 재시도 로직
-              cameraService.initialize();
-            },
-          ),
-          const SizedBox(height: 8),
-          TextButton(
-            onPressed: isInterviewStarted ? null : onStartInterview,
-            child: const Text('카메라 없이 계속하기'),
-          ),
-        ],
+    return Container(
+      color: Colors.black,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.videocam_off, size: 48, color: Colors.white70),
+            const SizedBox(height: 16),
+            const Text(
+              '카메라를 사용할 수 없습니다',
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              '웹 브라우저에서 카메라 권한을 허용해주세요',
+              style: TextStyle(fontSize: 14, color: Colors.white70),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.refresh),
+              label: const Text('카메라 다시 시도'),
+              onPressed: () {
+                // 카메라 재시도 로직
+                cameraService.initialize();
+              },
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: isInterviewStarted ? null : onStartInterview,
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('카메라 없이 계속하기'),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,52 +1,55 @@
 import 'package:flutter/material.dart';
+import '../../views/report_list_view.dart';
 import '../../services/resume/resume_service.dart';
+import '../../core/di/service_locator.dart';
 import '../../views/resume_view.dart';
 
 class ReportWidget extends StatelessWidget {
   final Color color;
 
   const ReportWidget({
-    super.key,
+    Key? key,
     required this.color,
-  });
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return _buildCard(
       context,
       title: '면접 보고서',
-      description: '과거 면접 결과를 분석하고 개선점을 확인하세요.',
+      description: '완료된 면접 분석 결과를 확인하고 피드백을 받아보세요.',
       imagePath: 'assets/images/report_image.png',
       color: color,
-      onTap: () {
-        _checkResumeAndNavigate(context);
-      },
+      onTap: () => _onReportCardTap(context),
     );
   }
 
-  // 이력서 확인 후 보고서 화면으로 이동
-  Future<void> _checkResumeAndNavigate(BuildContext context) async {
+  // 면접 보고서 카드 탭 처리
+  void _onReportCardTap(BuildContext context) async {
     try {
-      // 로딩 표시
+      // 로딩 다이얼로그 표시
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (BuildContext context) {
-          return const AlertDialog(
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text('이력서 정보 확인 중...'),
-              ],
+          return Dialog(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('보고서 정보를 확인하는 중...'),
+                ],
+              ),
             ),
           );
         },
       );
 
-      // 이력서 서비스 인스턴스 생성
-      final resumeService = ResumeService();
+      // 서비스 로케이터를 통해 ResumeService 인스턴스 가져오기
+      final resumeService = serviceLocator<ResumeService>();
 
       // 현재 사용자의 이력서 확인
       final existingResume = await resumeService.getCurrentUserResume();
@@ -54,49 +57,48 @@ class ReportWidget extends StatelessWidget {
       // 로딩 다이얼로그 닫기
       Navigator.of(context).pop();
 
-      if (existingResume != null) {
-        // 이력서가 있으면 보고서 화면으로 이동
-        if (context.mounted) {
-          Navigator.pushNamed(context, '/report-list');
-        }
-      } else {
-        // 이력서가 없으면 이력서 작성 안내 다이얼로그
-        if (context.mounted) {
-          _showResumeRequiredDialog(context);
+      if (context.mounted) {
+        if (existingResume != null) {
+          // 면접 보고서 페이지로 이동
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ReportListView()),
+          );
+        } else {
+          // 이력서가 없는 경우 안내 메시지
+          _showNoResumeDialog(context);
         }
       }
     } catch (e) {
       // 오류 발생 시 로딩 다이얼로그 닫기
       Navigator.of(context).pop();
+
       // 오류 메시지 표시
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('이력서 정보 확인 중 오류가 발생했습니다: $e')),
+          SnackBar(content: Text('보고서 정보 확인 중 오류가 발생했습니다: $e')),
         );
       }
     }
   }
 
   // 이력서가 필요하다는 다이얼로그
-  void _showResumeRequiredDialog(BuildContext context) {
+  void _showNoResumeDialog(BuildContext context) {
     showDialog(
       context: context,
-      barrierDismissible: true,
-      builder: (BuildContext context) => AlertDialog(
+      builder: (context) => AlertDialog(
         title: const Text('이력서 필요'),
-        content: const Text('보고서를 보기 위해서는 이력서 정보가 필요합니다. 먼저 이력서를 작성해주세요.'),
+        content: const Text('면접 보고서를 확인하려면 먼저 이력서를 작성해야 합니다.'),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              // 취소
             },
             child: const Text('취소'),
           ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              // 이력서 작성 페이지로 이동
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const ResumeView()),

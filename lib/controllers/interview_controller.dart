@@ -1,14 +1,14 @@
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
+import '../services/interview/interfaces/interview_service_interface.dart';
+import '../services/interview/interfaces/media_service_interface.dart';
 import '../services/common/video_recording_service.dart';
 import '../services/common/image_capture_service.dart';
 import '../services/common/audio_service.dart';
-import '../services/livestream/http_streaming_service.dart';
-import '../services/livestream/http_media_service.dart';
-import '../services/livestream/http_interview_service.dart';
-import '../services/resume/resume_service.dart';
+import '../services/resume/interfaces/resume_service_interface.dart';
 import '../models/resume_model.dart';
-import '../controllers/report_controller.dart';
+import '../services/report/interfaces/report_service_interface.dart';
+import 'package:get_it/get_it.dart';
 
 /// 인터뷰 기능을 제어하는 컨트롤러
 class InterviewController with ChangeNotifier {
@@ -16,13 +16,10 @@ class InterviewController with ChangeNotifier {
   final VideoRecordingService _cameraService;
   final ImageCaptureService _imageCaptureService;
   final AudioService _audioService;
-  final ResumeService _resumeService;
-  final ReportController _reportController;
-
-  // late로 변경하여 생성자에서는 초기화하지 않고, initialize 메서드에서 초기화
-  late HttpStreamingService _httpService;
-  late HttpMediaService _mediaService;
-  late HttpInterviewService _interviewService;
+  final IResumeService _resumeService;
+  final IReportService _reportService;
+  final IInterviewService _interviewService;
+  final IMediaService _mediaService;
 
   // 상태 변수
   bool _isInitialized = false;
@@ -64,165 +61,197 @@ class InterviewController with ChangeNotifier {
   VideoRecordingService get cameraService => _cameraService;
   ImageCaptureService get imageCaptureService => _imageCaptureService;
 
-  // 생성자 - 기본 서비스만 초기화
-  InterviewController({
+  // 생성자 - 직접 호출 대신 create 팩토리 메서드를 사용하세요
+  InterviewController._internal({
     required VideoRecordingService cameraService,
     required ImageCaptureService imageCaptureService,
     required AudioService audioService,
-    required ResumeService resumeService,
-    required ReportController reportController,
-    String serverUrl = 'http://localhost:8080',
+    required IResumeService resumeService,
+    required IReportService reportService,
+    required IInterviewService interviewService,
+    required IMediaService mediaService,
+    required String serverUrl,
   })  : _cameraService = cameraService,
         _imageCaptureService = imageCaptureService,
         _audioService = audioService,
         _resumeService = resumeService,
-        _reportController = reportController,
-        _serverUrl = serverUrl;
+        _reportService = reportService,
+        _interviewService = interviewService,
+        _mediaService = mediaService,
+        _serverUrl = serverUrl {
+    _initialize();
+  }
 
-  /// 팩토리 생성자 - 모든 서비스를 초기화해서 컨트롤러를 만듭니다
-  static Future<InterviewController> create({
-    String serverUrl = 'http://localhost:8080',
-    ReportController? reportController,
-  }) async {
-    final cameraService = VideoRecordingService();
-    final imageCaptureService = ImageCaptureService(cameraService);
-    final audioService = AudioService();
-    final resumeService = ResumeService();
-    final reportCtrl = reportController ?? ReportController();
+  /// 상태 변경 유틸리티 메서드 - 상태 변수들을 한 번에 변경하고 알림
+  void _updateState({
+    bool? isInitialized,
+    bool? isConnecting,
+    bool? isConnected,
+    bool? isInterviewStarted,
+    bool? isUploadingVideo,
+    bool? isCreatingReport,
+    ResumeModel? selectedResume,
+    List<Map<String, dynamic>>? resumeList,
+    Uint8List? lastCapturedFrame,
+    List<String>? questions,
+    int? currentQuestionIndex,
+    String? errorMessage,
+  }) {
+    if (isInitialized != null) _isInitialized = isInitialized;
+    if (isConnecting != null) _isConnecting = isConnecting;
+    if (isConnected != null) _isConnected = isConnected;
+    if (isInterviewStarted != null) _isInterviewStarted = isInterviewStarted;
+    if (isUploadingVideo != null) _isUploadingVideo = isUploadingVideo;
+    if (isCreatingReport != null) _isCreatingReport = isCreatingReport;
+    if (selectedResume != null) _selectedResume = selectedResume;
+    if (resumeList != null) _resumeList = resumeList;
+    if (lastCapturedFrame != null) _lastCapturedFrame = lastCapturedFrame;
+    if (questions != null) _questions = questions;
+    if (currentQuestionIndex != null)
+      _currentQuestionIndex = currentQuestionIndex;
+    if (errorMessage != null) _errorMessage = errorMessage;
 
-    final controller = InterviewController(
-      cameraService: cameraService,
-      imageCaptureService: imageCaptureService,
-      audioService: audioService,
-      resumeService: resumeService,
-      reportController: reportCtrl,
-      serverUrl: serverUrl,
-    );
+    notifyListeners();
+  }
 
-    await controller.initialize();
-    return controller;
+  /// 에러 처리 유틸리티 메서드
+  void _handleError(String message, dynamic error) {
+    final errorMsg = '$message: $error';
+    print(errorMsg); // 디버깅을 위한 로그
+    _updateState(errorMessage: errorMsg);
   }
 
   /// 컨트롤러 초기화
-  Future<void> initialize() async {
+  Future<void> _initialize() async {
     try {
-      // HTTP 스트리밍 서비스 초기화
-      _httpService = HttpStreamingService(
-        onError: _handleError,
-        onStateChanged: _handleHttpStateChanged,
-      );
+      // 초기화 중임을 표시
+      _updateState(isInitialized: false, errorMessage: null);
 
-      // 미디어 서비스 초기화
-      _mediaService = HttpMediaService(
-        httpService: _httpService,
-        onError: _handleError,
-        onStateChanged: _handleMediaStateChanged,
-      );
+      print('인터뷰 컨트롤러 초기화 시작...');
 
-      // 인터뷰 서비스 초기화
-      _interviewService = HttpInterviewService(
-        httpService: _httpService,
-        mediaService: _mediaService,
-        onError: _handleError,
-        onStateChanged: _handleInterviewStateChanged,
-        onQuestionsLoaded: _handleQuestionsLoaded,
-        onInterviewCompleted: _handleInterviewCompleted,
-      );
+      // 1단계: 카메라 초기화
+      try {
+        print('카메라 초기화 중...');
+        await _cameraService.initialize();
+        print('카메라 초기화 완료');
+      } catch (e) {
+        print('카메라 초기화 실패: $e');
+        _updateState(errorMessage: '카메라를 초기화하는데 실패했습니다: $e');
+        // 카메라 초기화 실패해도 계속 진행
+      }
 
-      // 서비스 리스너 설정
-      _setServiceListeners();
+      // 2단계: 오디오 초기화
+      try {
+        print('오디오 초기화 중...');
+        await _audioService.initialize();
+        print('오디오 초기화 완료');
+      } catch (e) {
+        print('오디오 초기화 실패: $e');
+        _updateState(errorMessage: '오디오를 초기화하는데 실패했습니다: $e');
+        // 오디오 초기화 실패해도 계속 진행
+      }
 
-      // 미디어 서비스에 비디오/오디오 콜백 설정
-      _mediaService.setVideoFrameCallback(() async {
-        if (_cameraService.isInitialized) {
-          final frameData = await _imageCaptureService.captureFrame();
-          // 더미 카메라거나 프레임 캡처 실패 시에도 인터뷰는 계속 진행
-          if (frameData == null && _cameraService.isUsingDummyCamera) {
-            // 더미 카메라 사용 중일 때는 null 반환해도 괜찮음
-            return null;
+      // 3단계: 미디어 서비스 콜백 설정
+      try {
+        print('미디어 서비스 콜백 설정 중...');
+        _mediaService.setVideoFrameCallback(() async {
+          if (_cameraService.isInitialized) {
+            final frameData = await _imageCaptureService.captureFrame();
+            if (frameData == null && _cameraService.isUsingDummyCamera) {
+              return null;
+            }
+            return frameData;
           }
-          return frameData;
-        }
-        return null;
-      });
+          return null;
+        });
 
-      _mediaService.setAudioDataCallback(() async {
-        if (_audioService.isInitialized) {
-          return await _audioService.captureAudioData();
-        }
-        return null;
-      });
+        _mediaService.setAudioDataCallback(() async {
+          if (_audioService.isInitialized) {
+            return await _audioService.captureAudioData();
+          }
+          return null;
+        });
+        print('미디어 서비스 콜백 설정 완료');
+      } catch (e) {
+        print('미디어 서비스 콜백 설정 실패: $e');
+        _updateState(errorMessage: '미디어 서비스를 설정하는데 실패했습니다: $e');
+        // 미디어 서비스 설정 실패해도 계속 진행
+      }
 
-      // 카메라 초기화
-      await _cameraService.initialize();
+      // 4단계: 이력서 목록 로드
+      try {
+        print('이력서 목록 로드 중...');
+        await loadResumeList();
+        print('이력서 목록 로드 완료');
+      } catch (e) {
+        print('이력서 목록 로드 실패: $e');
+        _updateState(errorMessage: '이력서 목록을 로드하는데 실패했습니다: $e');
+        // 이력서 로드 실패해도 계속 진행
+      }
 
-      // 오디오 초기화
-      await _audioService.initialize();
-
-      // 이력서 목록 로드
-      await loadResumeList();
-
-      _isInitialized = true;
-      notifyListeners();
+      print('인터뷰 컨트롤러 초기화 완료');
+      _updateState(isInitialized: true);
     } catch (e) {
-      _errorMessage = '컨트롤러 초기화 중 오류가 발생했습니다: $e';
-      notifyListeners();
-      rethrow; // 오류를 다시 던져서 상위 레벨에서도 처리할 수 있게 함
-    }
-  }
-
-  /// 서비스 리스너 설정
-  void _setServiceListeners() {
-    // HTTP 서비스 연결 상태 리스너
-    _httpService.connectionStatus.listen((status) {
-      _isConnected = status == ConnectionStatus.connected;
-      notifyListeners();
-    });
-  }
-
-  /// 면접 완료 콜백 처리
-  void _handleInterviewCompleted(String interviewId, String resumeId,
-      Map<String, dynamic> resumeData) async {
-    _isCreatingReport = true;
-    notifyListeners();
-
-    try {
-      // ReportController를 통해 보고서 생성
-      await _reportController.createInterviewReport(
-          interviewId, resumeId, resumeData);
-      print('면접 보고서가 생성되었습니다.');
-    } catch (e) {
-      _errorMessage = '면접 보고서 생성 중 오류가 발생했습니다: $e';
-      print('면접 보고서 생성 오류: $e');
-    } finally {
-      _isCreatingReport = false;
-      notifyListeners();
+      print('인터뷰 컨트롤러 초기화 중 치명적 오류: $e');
+      _handleError('컨트롤러 초기화 중 오류가 발생했습니다', e);
     }
   }
 
   /// 이력서 목록 로드
   Future<void> loadResumeList() async {
     try {
+      print('이력서 목록 가져오기 시작...');
+
+      // 이력서 서비스가 초기화되었는지 확인
+      if (_resumeService == null) {
+        throw Exception('이력서 서비스가 초기화되지 않았습니다');
+      }
+
+      // 이력서 목록 요청
       final resumeList = await _resumeService.getCurrentUserResumeList();
-      _resumeList = resumeList;
-      notifyListeners();
+      print('이력서 목록 가져오기 성공: ${resumeList.length}개 항목');
+
+      _updateState(resumeList: resumeList);
+
+      // 자동 선택 로직 제거
+      if (resumeList.isEmpty) {
+        print('이력서 목록이 비어있습니다');
+      } else {
+        print('이력서 목록을 성공적으로 불러왔습니다. 이력서를 선택해주세요.');
+      }
     } catch (e) {
-      _errorMessage = '이력서 목록을 로드하는 중 오류가 발생했습니다: $e';
-      notifyListeners();
+      print('이력서 목록 로드 중 오류 발생: $e');
+      _handleError('이력서 목록을 로드하는 중 오류가 발생했습니다', e);
     }
   }
 
   /// 이력서 선택
   Future<void> selectResume(String resumeId) async {
     try {
+      print('이력서 선택 시작: $resumeId');
+
+      if (resumeId.isEmpty) {
+        throw Exception('유효하지 않은 이력서 ID');
+      }
+
+      // 이력서 서비스가 초기화되었는지 확인
+      if (_resumeService == null) {
+        throw Exception('이력서 서비스가 초기화되지 않았습니다');
+      }
+
+      print('이력서 상세정보 요청 중...');
       final resumeData = await _resumeService.getResume(resumeId);
+
       if (resumeData != null) {
-        _selectedResume = resumeData;
-        notifyListeners();
+        print('이력서 선택 성공: ${resumeData.position} (${resumeData.field})');
+        _updateState(selectedResume: resumeData);
+      } else {
+        print('이력서를 찾을 수 없음: $resumeId');
+        throw Exception('해당 ID의 이력서를 찾을 수 없습니다: $resumeId');
       }
     } catch (e) {
-      _errorMessage = '이력서 데이터를 가져오는 중 오류가 발생했습니다: $e';
-      notifyListeners();
+      print('이력서 선택 중 오류 발생: $e');
+      _handleError('이력서 데이터를 가져오는 중 오류가 발생했습니다', e);
     }
   }
 
@@ -230,29 +259,21 @@ class InterviewController with ChangeNotifier {
   Future<bool> connectToServer() async {
     if (_isConnected) return true;
 
-    _isConnecting = true;
-    _errorMessage = null;
-    notifyListeners();
+    _updateState(isConnecting: true, errorMessage: null);
 
     try {
       // 서버에 연결
-      final success = await _httpService.connect(_serverUrl);
+      final success = await _mediaService.connect(_serverUrl);
 
-      _isConnecting = false;
-      _isConnected = success;
-      notifyListeners();
-
-      if (!success) {
-        _errorMessage = '서버에 연결할 수 없습니다';
-        notifyListeners();
-      }
+      _updateState(
+          isConnecting: false,
+          isConnected: success,
+          errorMessage: success ? null : '서버에 연결할 수 없습니다');
 
       return success;
     } catch (e) {
-      _isConnecting = false;
-      _isConnected = false;
-      _errorMessage = '서버 연결 중 오류가 발생했습니다: $e';
-      notifyListeners();
+      _updateState(isConnecting: false, isConnected: false);
+      _handleError('서버 연결 중 오류가 발생했습니다', e);
       return false;
     }
   }
@@ -268,13 +289,11 @@ class InterviewController with ChangeNotifier {
       }
 
       // 서버 연결 해제
-      _httpService.disconnect();
+      await _mediaService.disconnect();
 
-      _isConnected = false;
-      notifyListeners();
+      _updateState(isConnected: false);
     } catch (e) {
-      _errorMessage = '서버 연결 해제 중 오류가 발생했습니다: $e';
-      notifyListeners();
+      _handleError('서버 연결 해제 중 오류가 발생했습니다', e);
     }
   }
 
@@ -282,51 +301,19 @@ class InterviewController with ChangeNotifier {
   Future<bool> startInterview() async {
     if (_isInterviewStarted) return true;
 
-    // 이력서가 선택되지 않았으면 에러
     if (_selectedResume == null) {
-      _errorMessage = '인터뷰를 시작하려면 이력서를 선택해야 합니다';
-      notifyListeners();
+      _updateState(errorMessage: '인터뷰를 시작하려면 이력서를 선택해야 합니다');
       return false;
     }
 
-    // 서버에 연결되지 않았으면 연결
-    if (!_isConnected) {
-      final connected = await connectToServer();
-      if (!connected) return false;
-    }
-
     try {
-      // 이력서 데이터 전송
-      final resumeSuccess =
-          await _interviewService.uploadResumeData(_selectedResume!.toJson());
-
-      if (!resumeSuccess) {
-        _errorMessage = '이력서 데이터 전송에 실패했습니다';
-        notifyListeners();
-        return false;
-      }
-
-      // 더미 카메라 사용 중임을 서버에 알림 (필요한 경우)
-      if (_cameraService.isUsingDummyCamera) {
-        print('더미 카메라를 사용 중입니다. 비디오 없이 인터뷰가 진행됩니다.');
-      }
-
-      // 인터뷰 시작
       final success = await _interviewService.startInterview();
-
       if (success) {
-        _isInterviewStarted = true;
-        _errorMessage = null;
-        notifyListeners();
-        return true;
-      } else {
-        _errorMessage = '인터뷰 시작에 실패했습니다';
-        notifyListeners();
-        return false;
+        _updateState(isInterviewStarted: true, errorMessage: null);
       }
+      return success;
     } catch (e) {
-      _errorMessage = '인터뷰 시작 중 오류가 발생했습니다: $e';
-      notifyListeners();
+      _handleError('인터뷰 시작 중 오류가 발생했습니다', e);
       return false;
     }
   }
@@ -336,23 +323,18 @@ class InterviewController with ChangeNotifier {
     if (!_isInterviewStarted) return;
 
     try {
-      _isUploadingVideo = true;
-      notifyListeners();
+      _updateState(isUploadingVideo: true);
 
-      _interviewService.stopInterview();
-      _isInterviewStarted = false;
+      await _interviewService.stopInterview();
+
+      _updateState(isInterviewStarted: false);
 
       // 비디오 업로드가 완료되면 상태 업데이트
-      Future.delayed(const Duration(seconds: 2), () {
-        _isUploadingVideo = false;
-        notifyListeners();
-      });
-
-      notifyListeners();
+      await Future.delayed(const Duration(seconds: 2));
+      _updateState(isUploadingVideo: false);
     } catch (e) {
-      _errorMessage = '인터뷰 종료 중 오류가 발생했습니다: $e';
-      _isUploadingVideo = false;
-      notifyListeners();
+      _updateState(isUploadingVideo: false);
+      _handleError('인터뷰 종료 중 오류가 발생했습니다', e);
     }
   }
 
@@ -363,8 +345,7 @@ class InterviewController with ChangeNotifier {
     }
 
     if (_currentQuestionIndex < _questions.length - 1) {
-      _currentQuestionIndex++;
-      notifyListeners();
+      _updateState(currentQuestionIndex: _currentQuestionIndex + 1);
       return true;
     } else {
       return false;
@@ -376,8 +357,7 @@ class InterviewController with ChangeNotifier {
     try {
       return await _interviewService.getAnalysisLog();
     } catch (e) {
-      _errorMessage = '분석 로그를 가져오는 중 오류가 발생했습니다: $e';
-      notifyListeners();
+      _handleError('분석 로그를 가져오는 중 오류가 발생했습니다', e);
       return null;
     }
   }
@@ -387,47 +367,43 @@ class InterviewController with ChangeNotifier {
     try {
       return await _interviewService.getFeedbackSummary();
     } catch (e) {
-      _errorMessage = '피드백을 가져오는 중 오류가 발생했습니다: $e';
-      notifyListeners();
+      _handleError('피드백을 가져오는 중 오류가 발생했습니다', e);
       return null;
     }
   }
 
-  /// HTTP 상태 변경 처리
-  void _handleHttpStateChanged() {
-    _isConnected = _httpService.isConnected;
-    notifyListeners();
-  }
-
-  /// 미디어 상태 변경 처리
-  void _handleMediaStateChanged() {
-    _lastCapturedFrame = _mediaService.lastCapturedVideoFrame;
-    notifyListeners();
-  }
-
-  /// 인터뷰 상태 변경 처리
-  void _handleInterviewStateChanged() {
-    _isInterviewStarted = _interviewService.isInterviewStarted;
-    notifyListeners();
-  }
-
-  /// 질문 로드 처리
-  void _handleQuestionsLoaded(List<String> questions) {
-    _questions = questions;
-    _currentQuestionIndex = -1;
-    notifyListeners();
-  }
-
-  /// 에러 처리
-  void _handleError(String error) {
-    _errorMessage = error;
-    notifyListeners();
-  }
-
   /// 에러 메시지 초기화
   void clearErrorMessage() {
-    _errorMessage = null;
-    notifyListeners();
+    _updateState(errorMessage: null);
+  }
+
+  /// 면접 완료 후 리포트 생성
+  Future<String?> createReportFromInterview() async {
+    if (_selectedResume == null) {
+      _updateState(errorMessage: '리포트를 생성하려면 이력서가 필요합니다');
+      return null;
+    }
+
+    try {
+      _updateState(isCreatingReport: true);
+
+      // 인터뷰 ID 생성 (실제 앱에서는 인터뷰 서비스에서 제공할 수 있음)
+      final interviewId = 'interview_${DateTime.now().millisecondsSinceEpoch}';
+
+      // 리포트 서비스를 통해 리포트 생성
+      final report = await _reportService.createReport(
+        interviewId: interviewId,
+        resumeId: _selectedResume!.resume_id,
+        resumeData: _selectedResume!.toJson(),
+      );
+
+      _updateState(isCreatingReport: false);
+      return report?.id;
+    } catch (e) {
+      _handleError('리포트를 생성하는데 실패했습니다', e);
+      _updateState(isCreatingReport: false);
+      return null;
+    }
   }
 
   @override
@@ -439,7 +415,7 @@ class InterviewController with ChangeNotifier {
 
     // 서버 연결 해제
     if (_isConnected) {
-      _httpService.disconnect();
+      _mediaService.disconnect();
     }
 
     // 리소스 해제
@@ -447,8 +423,104 @@ class InterviewController with ChangeNotifier {
     _cameraService.dispose();
     _audioService.dispose();
     _mediaService.dispose();
-    _httpService.dispose();
 
     super.dispose();
+  }
+
+  /// 팩토리 생성자 - 모든 서비스를 초기화해서 컨트롤러를 만듭니다
+  static Future<InterviewController?> create({
+    String serverUrl = 'http://localhost:8080',
+  }) async {
+    try {
+      print('InterviewController 생성 시작...');
+      final serviceLocator = GetIt.instance;
+
+      // 필요한 서비스가 등록되어 있는지 확인
+      print('서비스 로케이터에서 필요한 서비스 확인 중...');
+
+      // 서비스 가져오기 (하나라도 실패하면 예외 발생)
+      print('서비스 로케이터에서 서비스 가져오기...');
+
+      final VideoRecordingService cameraService;
+      final ImageCaptureService imageCaptureService;
+      final AudioService audioService;
+      final IResumeService resumeService;
+      final IReportService reportService;
+      final IInterviewService interviewService;
+      final IMediaService mediaService;
+
+      try {
+        cameraService = serviceLocator<VideoRecordingService>();
+        print('VideoRecordingService 가져오기 성공');
+      } catch (e) {
+        print('VideoRecordingService 가져오기 실패: $e');
+        throw Exception('카메라 서비스를 찾을 수 없습니다: $e');
+      }
+
+      try {
+        imageCaptureService = serviceLocator<ImageCaptureService>();
+        print('ImageCaptureService 가져오기 성공');
+      } catch (e) {
+        print('ImageCaptureService 가져오기 실패: $e');
+        throw Exception('이미지 캡처 서비스를 찾을 수 없습니다: $e');
+      }
+
+      try {
+        audioService = serviceLocator<AudioService>();
+        print('AudioService 가져오기 성공');
+      } catch (e) {
+        print('AudioService 가져오기 실패: $e');
+        throw Exception('오디오 서비스를 찾을 수 없습니다: $e');
+      }
+
+      try {
+        resumeService = serviceLocator<IResumeService>();
+        print('IResumeService 가져오기 성공');
+      } catch (e) {
+        print('IResumeService 가져오기 실패: $e');
+        throw Exception('이력서 서비스를 찾을 수 없습니다: $e');
+      }
+
+      try {
+        reportService = serviceLocator<IReportService>();
+        print('IReportService 가져오기 성공');
+      } catch (e) {
+        print('IReportService 가져오기 실패: $e');
+        throw Exception('리포트 서비스를 찾을 수 없습니다: $e');
+      }
+
+      try {
+        interviewService = serviceLocator<IInterviewService>();
+        print('IInterviewService 가져오기 성공');
+      } catch (e) {
+        print('IInterviewService 가져오기 실패: $e');
+        throw Exception('인터뷰 서비스를 찾을 수 없습니다: $e');
+      }
+
+      try {
+        mediaService = serviceLocator<IMediaService>();
+        print('IMediaService 가져오기 성공');
+      } catch (e) {
+        print('IMediaService 가져오기 실패: $e');
+        throw Exception('미디어 서비스를 찾을 수 없습니다: $e');
+      }
+
+      print('모든 서비스 로드 완료, 컨트롤러 생성 중...');
+
+      // 모든 서비스 로드 성공, 컨트롤러 생성
+      return InterviewController._internal(
+        cameraService: cameraService,
+        imageCaptureService: imageCaptureService,
+        audioService: audioService,
+        resumeService: resumeService,
+        reportService: reportService,
+        interviewService: interviewService,
+        mediaService: mediaService,
+        serverUrl: serverUrl,
+      );
+    } catch (e) {
+      print('InterviewController 생성 실패: $e');
+      return null;
+    }
   }
 }
