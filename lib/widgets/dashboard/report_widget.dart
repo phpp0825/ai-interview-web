@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../views/report_list_view.dart';
-import '../../services/resume/interfaces/resume_service_interface.dart';
 import '../../core/di/service_locator.dart';
-import '../../views/resume_view.dart';
 import '../../services/report/interfaces/report_service_interface.dart';
 
 /// 면접 보고서 위젯
@@ -52,12 +50,8 @@ class _ReportWidgetState extends State<ReportWidget> {
 
       // 필요한 서비스 가져오기
       final reportService = serviceLocator<IReportService>();
-      final resumeService = serviceLocator<IResumeService>();
 
-      // 1. 먼저 이력서가 있는지 확인
-      final existingResume = await resumeService.getCurrentUserResume();
-
-      // 2. 보고서 목록 가져오기
+      // 보고서 목록 가져오기
       final reportList = await reportService.getCurrentUserReportList();
 
       // 로딩 상태 종료
@@ -68,12 +62,6 @@ class _ReportWidgetState extends State<ReportWidget> {
       }
 
       if (!mounted) return;
-
-      // 이력서가 없는 경우
-      if (existingResume == null) {
-        _showNoResumeDialog(context);
-        return;
-      }
 
       // 보고서가 없는 경우
       if (reportList.isEmpty) {
@@ -115,49 +103,6 @@ class _ReportWidgetState extends State<ReportWidget> {
         );
       }
     }
-  }
-
-  /// 이력서 필요 다이얼로그 표시
-  void _showNoResumeDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (context) => AlertDialog(
-        title: const Text('이력서 필요'),
-        content: const Text('면접 보고서를 확인하려면 이력서가 필요합니다.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('취소'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              Navigator.push(
-                context,
-                PageRouteBuilder(
-                  pageBuilder: (context, animation, secondaryAnimation) =>
-                      const ResumeView(),
-                  transitionsBuilder:
-                      (context, animation, secondaryAnimation, child) {
-                    return FadeTransition(
-                      opacity: animation,
-                      child: child,
-                    );
-                  },
-                  transitionDuration: const Duration(milliseconds: 300),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: widget.color,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('이력서 작성하기'),
-          ),
-        ],
-      ),
-    );
   }
 
   /// 보고서 없음 다이얼로그 표시
