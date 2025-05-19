@@ -72,6 +72,9 @@ dependencies:
   record: ^6.0.0
   path_provider: ^2.1.5
 
+  # 오디오 관련 패키지
+  just_audio: ^0.9.36
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

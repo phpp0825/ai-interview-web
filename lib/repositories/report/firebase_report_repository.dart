@@ -39,23 +39,40 @@ class FirebaseReportRepository implements IReportRepository {
     try {
       final User? currentUser = _auth.currentUser;
       if (currentUser == null) {
-        throw Exception('로그인된 사용자가 없습니다.');
+        print('로그인된 사용자가 없습니다.');
+        return [];
       }
 
       final String userId = currentUser.uid;
 
-      // Firestore에서 사용자의 리포트 목록 조회
+      // 쿼리 간소화 - orderBy 제거하고 단순화
       final QuerySnapshot reports = await _firestore
           .collection('reports')
           .where('userId', isEqualTo: userId)
-          .orderBy('createdAt', descending: true)
           .get();
 
       if (reports.docs.isEmpty) {
+        print('사용자의 리포트가 없습니다.');
         return [];
       }
 
-      return reports.docs.map((doc) {
+      // 결과를 수동으로 날짜순 정렬
+      final sortedDocs = List.of(reports.docs);
+      sortedDocs.sort((a, b) {
+        final aData = a.data() as Map<String, dynamic>;
+        final bData = b.data() as Map<String, dynamic>;
+
+        final aTimestamp = aData['createdAt'] as Timestamp?;
+        final bTimestamp = bData['createdAt'] as Timestamp?;
+
+        if (aTimestamp == null || bTimestamp == null) {
+          return 0;
+        }
+
+        return bTimestamp.compareTo(aTimestamp); // 내림차순 정렬
+      });
+
+      return sortedDocs.map((doc) {
         final data = doc.data() as Map<String, dynamic>;
         final resumeData = data.containsKey('resumeData')
             ? data['resumeData'] as Map<String, dynamic>
@@ -75,7 +92,8 @@ class FirebaseReportRepository implements IReportRepository {
       }).toList();
     } catch (e) {
       print('리포트 목록 조회 중 오류 발생: $e');
-      throw Exception('리포트 목록을 가져오는데 실패했습니다: $e');
+      // 예외를 발생시키지 않고 빈 목록 반환
+      return [];
     }
   }
 

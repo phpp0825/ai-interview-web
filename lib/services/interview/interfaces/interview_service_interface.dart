@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 /// 인터뷰 서비스 인터페이스
 ///
 /// 인터뷰 관련 기능을 제공하는 서비스의 인터페이스입니다.
@@ -61,4 +63,11 @@ abstract class IInterviewService {
   ///
   /// 인터뷰 피드백 요약을 가져옵니다.
   Future<String?> getFeedbackSummary();
+
+  /// TTS 음성 생성 요청
+  ///
+  /// 서버에 TTS 음성 생성을 요청하고 바이트 배열로 반환받습니다.
+  /// [text]는 음성으로 변환할 텍스트입니다.
+  /// 성공 시 오디오 바이트 데이터를 반환하고, 실패 시 null을 반환합니다.
+  Future<Uint8List?> requestTtsAudio(String text);
 }

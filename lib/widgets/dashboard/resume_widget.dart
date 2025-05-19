@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../views/resume_view.dart';
 import '../../services/resume/resume_service.dart';
 import '../../core/di/service_locator.dart';
+import '../../services/resume/interfaces/resume_service_interface.dart';
 
 class ResumeWidget extends StatelessWidget {
   final Color color;
@@ -47,7 +48,7 @@ class ResumeWidget extends StatelessWidget {
       );
 
       // 서비스 로케이터를 통해 ResumeService 인스턴스 가져오기
-      final resumeService = serviceLocator<ResumeService>();
+      final resumeService = serviceLocator<IResumeService>();
 
       // 현재 사용자의 이력서 확인
       final existingResume = await resumeService.getCurrentUserResume();

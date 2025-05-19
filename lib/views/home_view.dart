@@ -203,83 +203,13 @@ class HomePageContent extends StatelessWidget {
   // 상단 네비게이션 메뉴
   Widget _buildNavMenu(
       BuildContext context, HomeController controller, Color primaryColor) {
-    // 화면 너비에 따라 메뉴 표시 방식 결정
-    final screenWidth = MediaQuery.of(context).size.width;
-    final bool showFullMenu = screenWidth > 600;
-
-    if (showFullMenu) {
-      return Row(
-        children: [
-          TextButton(
-            onPressed: () => controller.navigateToResumeView(context),
-            child: const Text(
-              '이력서 작성',
-              style:
-                  TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-            ),
-          ),
-          TextButton(
-            onPressed: () =>
-                controller.showInterviewStartDialog(context, primaryColor),
-            child: const Text(
-              '면접 실행',
-              style:
-                  TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-            ),
-          ),
-          TextButton(
-            onPressed: () => controller.navigateToReportView(context),
-            child: const Text(
-              '면접 보고서',
-              style:
-                  TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-            ),
-          ),
-          const SizedBox(width: 16),
-        ],
-      );
-    } else {
-      return IconButton(
-        icon: const Icon(Icons.menu),
-        onPressed: () => _showMenuDialog(context, controller, primaryColor),
-      );
-    }
+    // 메뉴 항목을 제거하고 빈 공간 반환
+    return Container();
   }
 
   // 작은 화면에서 메뉴 다이얼로그 표시
   void _showMenuDialog(
       BuildContext context, HomeController controller, Color primaryColor) {
-    showDialog(
-      context: context,
-      builder: (context) => SimpleDialog(
-        title: const Text('메뉴'),
-        children: [
-          ListTile(
-            leading: const Icon(Icons.description),
-            title: const Text('이력서 작성'),
-            onTap: () {
-              Navigator.pop(context);
-              controller.navigateToResumeView(context);
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.videocam),
-            title: const Text('면접 실행'),
-            onTap: () {
-              Navigator.pop(context);
-              controller.showInterviewStartDialog(context, primaryColor);
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.assessment),
-            title: const Text('면접 보고서'),
-            onTap: () {
-              Navigator.pop(context);
-              controller.navigateToReportView(context);
-            },
-          ),
-        ],
-      ),
-    );
+    // 메뉴 항목이 제거되었으므로 이 메서드도 비워둡니다
   }
 }

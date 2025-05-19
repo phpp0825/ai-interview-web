@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'interfaces/interview_service_interface.dart';
 import 'interfaces/media_service_interface.dart';
 import 'interfaces/streaming_service_interface.dart';
@@ -308,28 +309,97 @@ class HttpInterviewService implements IInterviewService {
 
   @override
   Future<String?> getFeedbackSummary() async {
-    if (!_httpService.isConnected) {
-      onError('서버에 연결되지 않아 피드백을 가져올 수 없습니다');
-      return null;
-    }
-
-    if (_resumeId == null) {
-      onError('인터뷰가 시작되지 않았습니다');
+    if (!_httpService.isConnected || _resumeId == null) {
+      onError('서버에 연결되지 않았거나 이력서 ID가 없어 피드백 요약을 가져올 수 없습니다');
       return null;
     }
 
     try {
-      final response = await _httpService.get('feedback/$_resumeId');
+      final response = await _httpService.get('feedback_summary/$_resumeId');
 
       if (response?.statusCode == 200) {
         final jsonResponse = jsonDecode(response!.body);
-        return jsonResponse['feedback'];
+        return jsonResponse['summary'];
       } else {
-        onError('피드백 불러오기 실패: ${response?.statusCode}');
+        onError('피드백 요약 가져오기 실패: ${response?.statusCode}');
         return null;
       }
     } catch (e) {
-      onError('피드백 불러오기 실패: $e');
+      onError('피드백 요약 가져오기 실패: $e');
+      return null;
+    }
+  }
+
+  @override
+  Future<Uint8List?> requestTtsAudio(String text) async {
+    if (!_httpService.isConnected) {
+      onError('서버에 연결되지 않아 TTS 음성을 요청할 수 없습니다');
+      return null;
+    }
+
+    try {
+      // TTS 요청 헤더 설정
+      final headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'audio/mp3, audio/wav, audio/*',
+      };
+
+      // 서버에 TTS 요청 전송
+      final response = await _httpService.post(
+        'tts/generate',
+        {'text': text},
+        headers: headers,
+      );
+
+      // 응답 확인
+      if (response?.statusCode == 200) {
+        // Content-Type 확인
+        final contentType = response!.headers['content-type'];
+        if (contentType != null &&
+            (contentType.contains('audio/') ||
+                contentType.contains('application/octet-stream'))) {
+          print('TTS 오디오 데이터 수신 성공: ${response.bodyBytes.length} 바이트');
+          return response.bodyBytes;
+        } else if (contentType != null &&
+            contentType.contains('application/json')) {
+          // 서버가 JSON 형식으로 오류 응답을 보낸 경우
+          try {
+            final jsonResponse = jsonDecode(response.body);
+            if (jsonResponse.containsKey('error')) {
+              onError('TTS 서버 오류: ${jsonResponse['error']}');
+            } else {
+              onError('알 수 없는 JSON 응답 형식');
+            }
+          } catch (e) {
+            onError('JSON 응답 파싱 오류: $e');
+          }
+          return null;
+        } else {
+          onError('TTS 응답이 지원되지 않는 형식입니다: $contentType');
+          return null;
+        }
+      } else {
+        // 오류 응답 처리
+        String errorMessage = '상태 코드: ${response?.statusCode}';
+
+        // JSON 오류 메시지 추출 시도
+        if (response?.body != null && response!.body.isNotEmpty) {
+          try {
+            final jsonResponse = jsonDecode(response.body);
+            if (jsonResponse.containsKey('error')) {
+              errorMessage =
+                  '${jsonResponse['error']} (코드: ${response.statusCode})';
+            }
+          } catch (_) {
+            // JSON 파싱 실패 시 원래 오류 메시지 사용
+          }
+        }
+
+        onError('TTS 음성 생성 요청 실패: $errorMessage');
+        return null;
+      }
+    } catch (e) {
+      onError('TTS 음성 생성 요청 중 네트워크 오류: $e');
       return null;
     }
   }

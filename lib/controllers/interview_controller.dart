@@ -372,6 +372,48 @@ class InterviewController with ChangeNotifier {
     }
   }
 
+  /// 현재 질문에 대한 TTS 음성 재생
+  Future<bool> playCurrentQuestionTts() async {
+    if (!_isInterviewStarted) {
+      _updateState(errorMessage: '인터뷰가 시작되지 않았습니다');
+      return false;
+    }
+
+    if (_currentQuestionIndex < 0 ||
+        _currentQuestionIndex >= _questions.length) {
+      _updateState(errorMessage: '유효한 질문이 없습니다');
+      return false;
+    }
+
+    try {
+      _updateState(errorMessage: '음성 변환 중...');
+
+      // 현재 질문 텍스트 가져오기
+      final questionText = _questions[_currentQuestionIndex];
+      print('TTS 요청: "$questionText"');
+
+      // TTS 음성 데이터 요청
+      final audioData = await _interviewService.requestTtsAudio(questionText);
+
+      if (audioData == null || audioData.isEmpty) {
+        _updateState(errorMessage: 'TTS 음성 생성에 실패했습니다');
+        return false;
+      }
+
+      print('TTS 음성 데이터 수신: ${audioData.length} 바이트');
+      _updateState(errorMessage: '음성 재생 중...');
+
+      // 오디오 재생 (서버 응답의 Content-Type 자동 감지)
+      await _audioService.playAudioBytes(audioData);
+
+      _updateState(errorMessage: null);
+      return true;
+    } catch (e) {
+      _handleError('TTS 재생 중 오류가 발생했습니다', e);
+      return false;
+    }
+  }
+
   /// 에러 메시지 초기화
   void clearErrorMessage() {
     _updateState(errorMessage: null);

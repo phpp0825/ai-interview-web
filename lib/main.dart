@@ -46,106 +46,108 @@ void main() async {
   );
 }
 
+// 커스텀 페이지 트랜지션
+class NoAnimationPageTransitionsBuilder extends PageTransitionsBuilder {
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    // 즉시 페이지 전환
+    return FadeTransition(
+      opacity: animation,
+      child: child,
+    );
+  }
+}
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
+    return MaterialApp(
+      title: 'Ainterview',
+      debugShowCheckedModeBanner: false,
+      builder: (context, child) => ResponsiveBreakpoints.builder(
+        child: child!,
+        breakpoints: [
+          const Breakpoint(start: 0, end: 450, name: MOBILE),
+          const Breakpoint(start: 451, end: 800, name: TABLET),
+          const Breakpoint(start: 801, end: 1920, name: DESKTOP),
+          const Breakpoint(start: 1921, end: double.infinity, name: '4K'),
+        ],
       ),
-      child: MaterialApp(
-        title: 'Ainterview',
-        debugShowCheckedModeBanner: false,
-        builder: (context, child) => ResponsiveBreakpoints.builder(
-          child: Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-            ),
-            child: Stack(
-              children: [
-                Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                  ),
-                  width: double.infinity,
-                  height: double.infinity,
-                ),
-                child!,
-              ],
-            ),
-          ),
-          breakpoints: [
-            const Breakpoint(start: 0, end: 450, name: MOBILE),
-            const Breakpoint(start: 451, end: 800, name: TABLET),
-            const Breakpoint(start: 801, end: 1920, name: DESKTOP),
-            const Breakpoint(start: 1921, end: double.infinity, name: '4K'),
-          ],
+      routes: {
+        '/': (context) => const AuthWrapper(),
+        '/login': (context) => const LoginView(),
+        '/home': (context) => const HomePage(),
+        '/landing': (context) => const LandingView(),
+        '/report-list': (context) => const ReportListView(),
+        '/livestream': (context) => const HttpInterviewView(),
+        '/resume': (context) => const ResumeView(),
+      },
+      initialRoute: '/',
+      theme: ThemeData(
+        primarySwatch: Colors.deepPurple,
+        primaryColor: Colors.deepPurple,
+        colorScheme: const ColorScheme.light(
+          primary: Colors.deepPurple,
+          onPrimary: Colors.white,
+          secondary: Colors.deepPurple,
+          onSecondary: Colors.white,
+          surface: Colors.white,
+          background: Colors.white,
+          onBackground: Colors.black,
+          onSurface: Colors.black,
+          error: Colors.red,
+          onError: Colors.white,
+          brightness: Brightness.light,
         ),
-        routes: {
-          '/': (context) => const AuthWrapper(),
-          '/login': (context) => const LoginView(),
-          '/home': (context) => const HomePage(),
-          '/landing': (context) => const LandingView(),
-          '/report-list': (context) => const ReportListView(),
-          '/livestream': (context) => const HttpInterviewView(),
-          '/resume': (context) => const ResumeView(),
-        },
-        initialRoute: '/',
-        theme: ThemeData(
-          primarySwatch: Colors.deepPurple,
-          primaryColor: Colors.deepPurple,
-          colorScheme: const ColorScheme.light(
-            primary: Colors.deepPurple,
-            onPrimary: Colors.white,
-            secondary: Colors.deepPurple,
-            onSecondary: Colors.white,
-            surface: Colors.white,
-            background: Colors.white,
-            onBackground: Colors.black,
-            onSurface: Colors.black,
-            error: Colors.red,
-            onError: Colors.white,
-            brightness: Brightness.light,
-            surfaceTint: Color(0x00FFFFFF),
-            surfaceContainerLow: Colors.white,
-            surfaceContainer: Colors.white,
-            surfaceContainerHigh: Colors.white,
-            surfaceContainerHighest: Colors.white,
-            inverseSurface: Colors.white,
+        scaffoldBackgroundColor: Colors.white,
+        canvasColor: Colors.white,
+        cardColor: Colors.white,
+        dialogBackgroundColor: Colors.white,
+        dialogTheme: const DialogTheme(
+          backgroundColor: Colors.white,
+          elevation: 8.0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(16.0)),
           ),
-          scaffoldBackgroundColor: Colors.white,
-          canvasColor: Colors.white,
-          cardColor: Colors.white,
-          dialogBackgroundColor: Colors.white,
-          dialogTheme: const DialogTheme(
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.deepPurple,
+          foregroundColor: Colors.white,
+          elevation: 0,
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
             backgroundColor: Colors.white,
-            elevation: 8.0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(Radius.circular(16.0)),
-            ),
+            foregroundColor: Colors.deepPurple,
+            elevation: 1,
+            side: const BorderSide(color: Colors.deepPurple),
           ),
-          appBarTheme: const AppBarTheme(
-            backgroundColor: Colors.deepPurple,
-            foregroundColor: Colors.white,
-            elevation: 0,
-          ),
-          elevatedButtonTheme: ElevatedButtonThemeData(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: Colors.deepPurple,
-              elevation: 1,
-              side: const BorderSide(color: Colors.deepPurple),
-            ),
-          ),
-          useMaterial3: true,
-          textTheme: const TextTheme(
-            bodyMedium: TextStyle(color: Colors.black),
-            bodyLarge: TextStyle(color: Colors.black),
-          ),
-          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
+        // 페이지 트랜지션 설정
+        pageTransitionsTheme: PageTransitionsTheme(
+          builders: {
+            TargetPlatform.android: NoAnimationPageTransitionsBuilder(),
+            TargetPlatform.iOS: NoAnimationPageTransitionsBuilder(),
+            TargetPlatform.macOS: NoAnimationPageTransitionsBuilder(),
+            TargetPlatform.windows: NoAnimationPageTransitionsBuilder(),
+            TargetPlatform.linux: NoAnimationPageTransitionsBuilder(),
+            TargetPlatform.fuchsia: NoAnimationPageTransitionsBuilder(),
+          },
+        ),
+        useMaterial3: false, // Material 3 대신 Material 2 사용
+        textTheme: const TextTheme(
+          bodyMedium: TextStyle(color: Colors.black),
+          bodyLarge: TextStyle(color: Colors.black),
+        ),
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
     );
   }

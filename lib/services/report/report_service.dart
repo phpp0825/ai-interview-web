@@ -117,9 +117,11 @@ class ReportService implements IReportService {
   @override
   Future<List<Map<String, dynamic>>> getCurrentUserReportList() async {
     try {
-      return await _repository.getCurrentUserReportSummaries();
+      final reports = await _repository.getCurrentUserReportSummaries();
+      return reports;
     } catch (e) {
       print('사용자 리포트 목록 조회 중 오류 발생: $e');
+      // 빈 배열 반환하여 오류가 발생해도 앱이 계속 작동하도록 함
       return [];
     }
   }
