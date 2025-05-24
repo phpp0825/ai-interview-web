@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../views/resume_view.dart';
-import '../../services/resume/resume_service.dart';
 import '../../core/di/service_locator.dart';
 import '../../services/resume/interfaces/resume_service_interface.dart';
 

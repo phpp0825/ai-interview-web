@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
-import '../services/auth/auth_service.dart';
 import '../controllers/home_controller.dart';
 import '../widgets/dashboard/resume_widget.dart';
 import '../widgets/dashboard/interview_widget.dart';
@@ -205,11 +203,5 @@ class HomePageContent extends StatelessWidget {
       BuildContext context, HomeController controller, Color primaryColor) {
     // 메뉴 항목을 제거하고 빈 공간 반환
     return Container();
-  }
-
-  // 작은 화면에서 메뉴 다이얼로그 표시
-  void _showMenuDialog(
-      BuildContext context, HomeController controller, Color primaryColor) {
-    // 메뉴 항목이 제거되었으므로 이 메서드도 비워둡니다
   }
 }

@@ -1,14 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 class AuthService {
   // Firebase Auth 인스턴스
   final FirebaseAuth _auth = FirebaseAuth.instance;
-
-  // Firestore 인스턴스
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Google Sign In 인스턴스 - 웹용 설정 추가
   final GoogleSignIn _googleSignIn = GoogleSignIn(

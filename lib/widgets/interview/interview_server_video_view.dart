@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'dart:typed_data';
 
 /// 서버로부터 받아온 영상을 표시하는 위젯
 class InterviewServerVideoView extends StatelessWidget {

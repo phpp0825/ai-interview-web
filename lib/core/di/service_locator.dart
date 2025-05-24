@@ -5,11 +5,11 @@ import '../../repositories/report/report_repository_interface.dart';
 import '../../repositories/resume/firebase_resume_repository.dart';
 import '../../repositories/resume/resume_repository_interface.dart';
 import '../../services/common/audio_service.dart';
-import '../../services/common/image_capture_service.dart';
+
 import '../../services/common/video_recording_service.dart';
-import '../../services/interview/http_interview_service.dart';
-import '../../services/interview/http_media_service.dart';
-import '../../services/interview/http_streaming_service.dart';
+import '../../services/interview/interview_service.dart';
+import '../../services/interview/media_service.dart';
+import '../../services/interview/streaming_service.dart';
 import '../../services/interview/interfaces/interview_service_interface.dart';
 import '../../services/interview/interfaces/media_service_interface.dart';
 import '../../services/interview/interfaces/streaming_service_interface.dart';
@@ -35,33 +35,28 @@ Future<void> setupServiceLocator() async {
   // 기본 서비스들
   serviceLocator.registerLazySingleton(() => VideoRecordingService());
 
-  // ImageCaptureService는 VideoRecordingService에 의존
-  serviceLocator.registerLazySingleton(
-      () => ImageCaptureService(serviceLocator<VideoRecordingService>()));
-
   serviceLocator.registerLazySingleton(() => AudioService());
 
   // 인터뷰 서비스 등록
   // 스트리밍 서비스는 에러 콜백을 받아야 하므로 팩토리로 등록
   serviceLocator.registerFactory<IStreamingService>(() {
-    return HttpStreamingService(
+    return StreamingService(
       onError: (msg) => print('스트리밍 오류: $msg'),
     );
   });
 
   // 미디어 서비스도 팩토리로 등록
   serviceLocator.registerFactory<IMediaService>(() {
-    return HttpMediaService(
+    return MediaService(
       httpService: serviceLocator<IStreamingService>(),
       cameraService: serviceLocator<VideoRecordingService>(),
-      audioService: serviceLocator<AudioService>(),
       onError: (msg) => print('미디어 오류: $msg'),
     );
   });
 
   // 인터뷰 서비스도 팩토리로 등록
   serviceLocator.registerFactory<IInterviewService>(() {
-    return HttpInterviewService(
+    return InterviewService(
       httpService: serviceLocator<IStreamingService>(),
       mediaService: serviceLocator<IMediaService>(),
       onError: (msg) => print('인터뷰 오류: $msg'),

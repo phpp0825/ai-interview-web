@@ -5,7 +5,7 @@ import 'interfaces/media_service_interface.dart';
 import 'interfaces/streaming_service_interface.dart';
 import 'interfaces/connection_status.dart';
 
-class HttpInterviewService implements IInterviewService {
+class InterviewService implements IInterviewService {
   final IStreamingService _httpService;
   final IMediaService _mediaService;
 
@@ -31,7 +31,7 @@ class HttpInterviewService implements IInterviewService {
   @override
   bool get hasMoreQuestions => _currentQuestionIndex < _questions.length - 1;
 
-  HttpInterviewService({
+  InterviewService({
     required IStreamingService httpService,
     required IMediaService mediaService,
     required this.onError,

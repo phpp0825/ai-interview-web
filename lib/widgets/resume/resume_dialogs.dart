@@ -6,8 +6,7 @@ import 'dart:math';
 class ResumeDialogs {
   // 로딩 다이얼로그 컨텍스트를 추적하기 위한 키
   static BuildContext? _loadingDialogContext;
-  // 원본 컨텍스트를 저장하기 위한 변수
-  static BuildContext? _originalContext;
+
   // 성공 다이얼로그 표시 여부
   static bool _isSuccessDialogShowing = false;
   // 전역 네비게이터 키
@@ -107,8 +106,7 @@ class ResumeDialogs {
     print('=== handleSubmit 시작 ===');
     // 초기화
     _isSuccessDialogShowing = false;
-    // 원본 컨텍스트 저장
-    _originalContext = context;
+
     // 네비게이터 상태 저장
     final navigatorState = Navigator.of(context, rootNavigator: true);
 

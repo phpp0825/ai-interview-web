@@ -28,17 +28,12 @@ class HomeController extends ChangeNotifier {
 
   // 로그아웃 처리
   Future<void> signOut() async {
-      await _authService.signOut();
+    await _authService.signOut();
   }
 
   // 이력서 화면으로 이동
   void navigateToResumeView(BuildContext context) {
     Navigator.pushNamed(context, '/resume');
-  }
-
-  // 리포트 화면으로 이동
-  void navigateToReportView(BuildContext context) {
-    Navigator.pushNamed(context, '/report-list');
   }
 
   // 인터뷰 시작 다이얼로그 표시

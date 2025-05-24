@@ -13,7 +13,7 @@ import 'views/login_view.dart';
 import 'views/home_view.dart';
 import 'views/landing_view.dart';
 import 'views/report_list_view.dart';
-import 'views/http_interview_view.dart';
+import 'views/interview_view.dart';
 import 'views/resume_view.dart';
 
 void main() async {
@@ -87,7 +87,7 @@ class MyApp extends StatelessWidget {
         '/home': (context) => const HomePage(),
         '/landing': (context) => const LandingView(),
         '/report-list': (context) => const ReportListView(),
-        '/livestream': (context) => const HttpInterviewView(),
+        '/livestream': (context) => const InterviewView(),
         '/resume': (context) => const ResumeView(),
       },
       initialRoute: '/',
@@ -110,8 +110,7 @@ class MyApp extends StatelessWidget {
         scaffoldBackgroundColor: Colors.white,
         canvasColor: Colors.white,
         cardColor: Colors.white,
-        dialogBackgroundColor: Colors.white,
-        dialogTheme: const DialogTheme(
+        dialogTheme: const DialogThemeData(
           backgroundColor: Colors.white,
           elevation: 8.0,
           shape: RoundedRectangleBorder(

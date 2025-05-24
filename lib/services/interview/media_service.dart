@@ -5,14 +5,12 @@ import 'package:flutter/foundation.dart';
 import 'interfaces/media_service_interface.dart';
 import 'interfaces/streaming_service_interface.dart';
 import '../common/video_recording_service.dart';
-import '../common/audio_service.dart';
 
 /// HTTP 통신을 이용한 미디어 서비스 구현
-class HttpMediaService implements IMediaService {
+class MediaService implements IMediaService {
   // 서비스 인스턴스
   final IStreamingService _httpService;
   final VideoRecordingService _cameraService;
-  final AudioService _audioService;
 
   // 콜백 함수
   final Function(String) onError;
@@ -47,15 +45,13 @@ class HttpMediaService implements IMediaService {
 
   String? get recordedVideoPath => _recordedVideoPath;
 
-  HttpMediaService({
+  MediaService({
     required IStreamingService httpService,
     required VideoRecordingService cameraService,
-    required AudioService audioService,
     required this.onError,
     this.onStateChanged,
   })  : _httpService = httpService,
-        _cameraService = cameraService,
-        _audioService = audioService;
+        _cameraService = cameraService;
 
   /// 서버 연결
   @override
@@ -283,17 +279,12 @@ class HttpMediaService implements IMediaService {
 
   // 로컬 비디오 녹화 기능
   Future<bool> startVideoRecording() async {
-    if (_cameraService == null) {
-      onError('카메라 서비스가 초기화되지 않았습니다');
-      return false;
-    }
-
     if (_isVideoRecording) {
       return true;
     }
 
     try {
-      final success = await _cameraService!.startVideoRecording();
+      final success = await _cameraService.startVideoRecording();
       _isVideoRecording = success;
       onStateChanged?.call();
       return success;
@@ -304,12 +295,12 @@ class HttpMediaService implements IMediaService {
   }
 
   Future<String?> stopVideoRecording() async {
-    if (_cameraService == null || !_isVideoRecording) {
+    if (!_isVideoRecording) {
       return null;
     }
 
     try {
-      final videoPath = await _cameraService!.stopVideoRecording();
+      final videoPath = await _cameraService.stopVideoRecording();
       _isVideoRecording = false;
       _recordedVideoPath = videoPath;
       onStateChanged?.call();

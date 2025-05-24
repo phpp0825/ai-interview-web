@@ -16,7 +16,7 @@ class LandingView extends StatelessWidget {
         backgroundColor: Colors.deepPurple,
         elevation: 0,
         title: const Text(
-          'YOUR WEBSITE',
+          'Ainterview',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,

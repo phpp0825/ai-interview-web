@@ -1,13 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'interfaces/streaming_service_interface.dart';
 import 'interfaces/connection_status.dart';
 
 /// HTTP 통신을 통한 스트리밍 서비스 구현
-class HttpStreamingService implements IStreamingService {
+class StreamingService implements IStreamingService {
   // 서버 URL
   String? _serverUrl;
 
@@ -22,7 +20,7 @@ class HttpStreamingService implements IStreamingService {
   // 에러 콜백
   final Function(String) onError;
 
-  HttpStreamingService({
+  StreamingService({
     required this.onError,
   });
 

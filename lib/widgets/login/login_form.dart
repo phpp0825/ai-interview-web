@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth/auth_service.dart';
-import '../../views/home_view.dart';
 
 class LoginForm extends StatefulWidget {
   const LoginForm({super.key});
@@ -103,18 +102,7 @@ class _LoginFormState extends State<LoginForm> {
     }
   }
 
-  // 자동 로그인 확인
-  void _checkExistingUser() {
-    final currentUser =
-        Provider.of<AuthService>(context, listen: false).currentUser;
-
-    if (currentUser != null) {
-      print('자동 로그인: ${currentUser.uid}');
-      Future.microtask(() {
-        Navigator.of(context).pushReplacementNamed('/home');
-      });
-    }
-  }
+  
 
   // 구글 로그인 처리
   Future<void> _signInWithGoogle() async {
