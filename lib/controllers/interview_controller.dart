@@ -59,7 +59,7 @@ class InterviewController extends ChangeNotifier {
       _setLoading(true);
       _setErrorMessage(null);
 
-      // 1. 서버 API 서비스 초기화
+      // 1. 서버 API 서비스 초기화 (연결은 하지 않음)
       _serverApiService =
           ServerApiService(baseUrl: AppConstants.defaultServerUrl);
 
@@ -90,9 +90,9 @@ class InterviewController extends ChangeNotifier {
         print('InterviewController: 이력서 서비스 초기화 실패: $e');
       }
 
-      // 3. 서버 연결 확인
-      _isConnected = await _serverApiService.checkServerConnection();
-      print('InterviewController: 서버 연결 상태: $_isConnected');
+      // 3. 서버 연결은 사용자가 수동으로 시작하도록 변경
+      _isConnected = false;
+      print('InterviewController: 서비스 초기화 완료 (서버 연결은 수동)');
 
       _setLoading(false);
     } catch (e) {
@@ -124,7 +124,7 @@ class InterviewController extends ChangeNotifier {
         if (resumeData != null) {
           _selectedResume = resumeData;
           notifyListeners();
-          await _generateQuestions();
+          // 자동으로 질문 생성하지 않음 - 사용자가 수동으로 시작
           print('InterviewController: 이력서 선택 완료: ${resumeData.position}');
           return true;
         }
@@ -137,12 +137,21 @@ class InterviewController extends ChangeNotifier {
     }
   }
 
-  /// 질문 생성
-  Future<void> _generateQuestions() async {
-    try {
-      if (_selectedResume == null) return;
+  /// 질문 생성 (수동 호출)
+  Future<bool> generateQuestions() async {
+    if (!_isConnected) {
+      _setErrorMessage('서버에 연결되지 않았습니다. 먼저 서버에 연결해주세요.');
+      return false;
+    }
 
+    if (_selectedResume == null) {
+      _setErrorMessage('이력서를 먼저 선택해주세요.');
+      return false;
+    }
+
+    try {
       print('InterviewController: 질문 생성 시작');
+      _setLoading(true);
 
       // 이력서 PDF 파일 가져오기 (실제로는 이력서 데이터에서 PDF 바이트를 가져와야 함)
       // 여기서는 임시로 더미 데이터를 사용
@@ -154,15 +163,21 @@ class InterviewController extends ChangeNotifier {
       if (questions != null && questions.isNotEmpty) {
         _questions = questions;
         _currentQuestionIndex = 0;
+        _setLoading(false);
         notifyListeners();
         print('InterviewController: 질문 생성 완료: ${questions.length}개 질문');
+        return true;
       } else {
+        _setLoading(false);
         print('InterviewController: 질문 생성 실패');
         _setErrorMessage('질문을 생성하지 못했습니다');
+        return false;
       }
     } catch (e) {
+      _setLoading(false);
       print('InterviewController: 질문 생성 중 오류: $e');
       _setErrorMessage('질문 생성 중 오류가 발생했습니다: $e');
+      return false;
     }
   }
 
@@ -236,16 +251,35 @@ class InterviewController extends ChangeNotifier {
 
   /// 서버 연결
   Future<bool> connectToServer() async {
-    if (_isConnected) return true;
+    if (_isConnected) {
+      print('InterviewController: 이미 서버에 연결되어 있습니다');
+      return true;
+    }
 
     try {
+      print('InterviewController: 서버 연결 시도 중...');
+      _setLoading(true);
+      _setErrorMessage(null);
+
       final success = await _serverApiService.checkServerConnection();
-      _isConnected = success;
+
+      if (success) {
+        _isConnected = true;
+        print('InterviewController: 서버 연결 성공');
+      } else {
+        _isConnected = false;
+        _setErrorMessage('서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.');
+        print('InterviewController: 서버 연결 실패');
+      }
+
+      _setLoading(false);
       notifyListeners();
       return success;
     } catch (e) {
-      print('InterviewController: 서버 연결 실패: $e');
+      print('InterviewController: 서버 연결 예외: $e');
       _isConnected = false;
+      _setLoading(false);
+      _setErrorMessage('서버 연결 중 오류가 발생했습니다: $e');
       notifyListeners();
       return false;
     }

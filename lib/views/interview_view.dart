@@ -114,6 +114,33 @@ class _InterviewViewState extends State<InterviewView> {
     }
   }
 
+  /// 질문 생성 처리
+  Future<void> _handleGenerateQuestions() async {
+    if (!_controller.isConnected) {
+      InterviewDialogs.showErrorDialog(
+        context: context,
+        message: '서버에 연결되지 않았습니다. 먼저 서버에 연결해주세요.',
+      );
+      return;
+    }
+
+    if (_controller.selectedResume == null) {
+      _showResumeSelectionDialog();
+      return;
+    }
+
+    final success = await _controller.generateQuestions();
+    if (success && mounted) {
+      InterviewDialogs.showSnackBar(
+          context: context, message: '질문이 생성되었습니다! 이제 면접을 시작할 수 있습니다.');
+    } else if (_controller.errorMessage != null && mounted) {
+      InterviewDialogs.showErrorDialog(
+        context: context,
+        message: _controller.errorMessage!,
+      );
+    }
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -242,8 +269,13 @@ class _InterviewViewState extends State<InterviewView> {
 
           // 하단 컨트롤 바
           InterviewControlBar(
+            isConnected: controller.isConnected,
             isInterviewStarted: controller.isInterviewStarted,
             isUploadingVideo: controller.isUploadingVideo,
+            hasQuestions: controller.questions.isNotEmpty,
+            hasSelectedResume: controller.selectedResume != null,
+            onConnectToServer: _handleServerConnection,
+            onGenerateQuestions: _handleGenerateQuestions,
             onStartInterview: _handleStartInterview,
             onStopInterview: _handleStopInterview,
           ),

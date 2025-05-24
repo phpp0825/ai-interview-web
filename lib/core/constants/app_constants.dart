@@ -8,7 +8,8 @@ class AppConstants {
 
   // 서버 URL (ngrok 터널 주소)
   // TODO: 실제 ngrok 주소로 변경하세요 (예: https://abc123.ngrok.io)
-  static const String defaultServerUrl = 'https://your-ngrok-url.ngrok.io';
+  static const String defaultServerUrl =
+      'https://304e-1-225-117-98.ngrok-free.app';
 
   // 로컬 개발용 주소 (백업)
   static const String localServerUrl = 'http://localhost:8000';
