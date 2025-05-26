@@ -1,9 +1,17 @@
+/*
+// 전체 미디어 서비스 인터페이스 주석처리 - 목업 모드
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
-/// 미디어 서비스 인터페이스
-///
-/// 비디오 및 오디오 스트리밍 관련 기능을 제공하는 서비스의 인터페이스입니다.
+abstract class IMediaService {
+  // 실제 미디어 서비스 인터페이스
+}
+*/
+
+import 'dart:typed_data';
+
+/// 목업 미디어 서비스 인터페이스
+/// 실제 서버 통신 없이 앱의 흐름을 테스트하기 위한 간단한 목업 인터페이스입니다
 abstract class IMediaService {
   /// 마지막으로 캡처된 비디오 프레임
   Uint8List? get lastCapturedVideoFrame;
@@ -44,12 +52,12 @@ abstract class IMediaService {
   /// 비디오 전송
   ///
   /// 비디오 데이터를 서버로 전송합니다.
-  Future<http.Response?> sendVideoFrame();
+  Future<bool> startVideoRecording();
 
   /// 오디오 전송
   ///
   /// 오디오 데이터를 서버로 전송합니다.
-  Future<http.Response?> sendAudioData();
+  Future<String?> stopVideoRecording();
 
   /// 리소스 해제
   void dispose();

@@ -5,6 +5,7 @@ import '../../repositories/report/report_repository_interface.dart';
 import '../../repositories/resume/firebase_resume_repository.dart';
 import '../../repositories/resume/resume_repository_interface.dart';
 import '../../services/common/audio_service.dart';
+import '../../services/api/server_api_service.dart';
 
 import '../../services/common/video_recording_service.dart';
 import '../../services/interview/interview_service.dart';
@@ -55,11 +56,10 @@ Future<void> setupServiceLocator() async {
   });
 
   // 인터뷰 서비스도 팩토리로 등록
-  serviceLocator.registerFactory<IInterviewService>(() {
+  serviceLocator.registerFactory(() {
     return InterviewService(
-      httpService: serviceLocator<IStreamingService>(),
-      mediaService: serviceLocator<IMediaService>(),
-      onError: (msg) => print('인터뷰 오류: $msg'),
+      serverApiService: ServerApiService(baseUrl: 'http://localhost:8000'),
+      audioService: serviceLocator<AudioService>(),
     );
   });
 

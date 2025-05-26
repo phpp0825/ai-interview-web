@@ -15,6 +15,13 @@ class ReportModel {
   final List<FlSpot> speechSpeedData;
   final List<ScatterSpot> gazeData;
 
+  // 면접 세부 정보 필드 추가
+  final List<QuestionAnswerModel>? questionAnswers;
+  final List<SkillEvaluationModel>? skillEvaluations;
+  final String? feedback;
+  final String? grade;
+  final Map<String, int>? categoryScores;
+
   ReportModel({
     required this.id,
     required this.title,
@@ -28,6 +35,12 @@ class ReportModel {
     required this.timestamps,
     required this.speechSpeedData,
     required this.gazeData,
+    // 새 필드들 (선택적)
+    this.questionAnswers,
+    this.skillEvaluations,
+    this.feedback,
+    this.grade,
+    this.categoryScores,
   });
 
   factory ReportModel.fromJson(Map<String, dynamic> json) {
@@ -48,6 +61,18 @@ class ReportModel {
           [],
       speechSpeedData: _parseSpeechSpeedData(json['speechSpeedData']),
       gazeData: _parseGazeData(json['gazeData']),
+      // 새 필드들 파싱
+      questionAnswers: (json['questionAnswers'] as List?)
+          ?.map((qa) => QuestionAnswerModel.fromJson(qa))
+          .toList(),
+      skillEvaluations: (json['skillEvaluations'] as List?)
+          ?.map((se) => SkillEvaluationModel.fromJson(se))
+          .toList(),
+      feedback: json['feedback'],
+      grade: json['grade'],
+      categoryScores: json['categoryScores'] != null
+          ? Map<String, int>.from(json['categoryScores'])
+          : null,
     );
   }
 
@@ -109,6 +134,14 @@ class ReportModel {
                 'color': '#${spot.color.value.toRadixString(16).substring(2)}',
               })
           .toList(),
+      // 새 필드들 추가
+      if (questionAnswers != null)
+        'questionAnswers': questionAnswers!.map((qa) => qa.toJson()).toList(),
+      if (skillEvaluations != null)
+        'skillEvaluations': skillEvaluations!.map((se) => se.toJson()).toList(),
+      if (feedback != null) 'feedback': feedback,
+      if (grade != null) 'grade': grade,
+      if (categoryScores != null) 'categoryScores': categoryScores,
     };
   }
 }
@@ -137,6 +170,80 @@ class TimeStampModel {
       'time': time,
       'label': label,
       'description': description,
+    };
+  }
+}
+
+/// 질문-답변 모델 (ReportModel용)
+class QuestionAnswerModel {
+  final String question;
+  final String answer;
+  final String videoUrl;
+  final int score;
+  final String evaluation;
+  final int answerDuration;
+
+  QuestionAnswerModel({
+    required this.question,
+    required this.answer,
+    required this.videoUrl,
+    required this.score,
+    required this.evaluation,
+    required this.answerDuration,
+  });
+
+  factory QuestionAnswerModel.fromJson(Map<String, dynamic> json) {
+    return QuestionAnswerModel(
+      question: json['question'] ?? '',
+      answer: json['answer'] ?? '',
+      videoUrl: json['videoUrl'] ?? '',
+      score: json['score'] ?? 0,
+      evaluation: json['evaluation'] ?? '',
+      answerDuration: json['answerDuration'] ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'question': question,
+      'answer': answer,
+      'videoUrl': videoUrl,
+      'score': score,
+      'evaluation': evaluation,
+      'answerDuration': answerDuration,
+    };
+  }
+}
+
+/// 기술 평가 모델 (ReportModel용)
+class SkillEvaluationModel {
+  final String skillName;
+  final int score;
+  final String level;
+  final String comment;
+
+  SkillEvaluationModel({
+    required this.skillName,
+    required this.score,
+    required this.level,
+    required this.comment,
+  });
+
+  factory SkillEvaluationModel.fromJson(Map<String, dynamic> json) {
+    return SkillEvaluationModel(
+      skillName: json['skillName'] ?? '',
+      score: json['score'] ?? 0,
+      level: json['level'] ?? 'Beginner',
+      comment: json['comment'] ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'skillName': skillName,
+      'score': score,
+      'level': level,
+      'comment': comment,
     };
   }
 }

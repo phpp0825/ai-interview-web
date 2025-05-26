@@ -4,28 +4,17 @@ import 'package:http/http.dart' as http;
 import 'interfaces/streaming_service_interface.dart';
 import 'interfaces/connection_status.dart';
 
-/// HTTP 통신을 통한 스트리밍 서비스 구현
+/// 목업 스트리밍 서비스
+/// 실제 서버 통신 없이 앱의 흐름을 테스트하기 위한 간단한 목업 클래스입니다
 class StreamingService implements IStreamingService {
-  // 서버 URL
-  String? _serverUrl;
-
-  // HTTP 클라이언트
-  final http.Client _client = http.Client();
-
-  // 연결 상태
-  bool _isConnected = false;
   final StreamController<ConnectionStatus> _connectionStatusController =
       StreamController<ConnectionStatus>.broadcast();
-
-  // 에러 콜백
   final Function(String) onError;
 
-  StreamingService({
-    required this.onError,
-  });
+  StreamingService({required this.onError});
 
   @override
-  bool get isConnected => _isConnected;
+  bool get isConnected => true; // 목업에서는 항상 연결됨
 
   @override
   Stream<ConnectionStatus> get connectionStatus =>
@@ -33,214 +22,83 @@ class StreamingService implements IStreamingService {
 
   @override
   Future<bool> connect(String serverUrl) async {
-    if (_isConnected && _serverUrl == serverUrl) {
-      return true;
-    }
-
-    _connectionStatusController.add(ConnectionStatus.connecting);
-
-    try {
-      // 테스트 요청으로 서버 연결 확인
-      final response = await _client
-          .get(Uri.parse('$serverUrl/ping'))
-          .timeout(const Duration(seconds: 5));
-
-      if (response.statusCode == 200) {
-        _serverUrl = serverUrl;
-        _isConnected = true;
-        _connectionStatusController.add(ConnectionStatus.connected);
-        return true;
-      } else {
-        _connectionStatusController.add(ConnectionStatus.failed);
-        onError('서버 연결 실패: 상태 코드 ${response.statusCode}');
-        return false;
-      }
-    } catch (e) {
-      _connectionStatusController.add(ConnectionStatus.failed);
-      onError('서버 연결 실패: $e');
-      return false;
-    }
+    print('목업: 스트리밍 서버 연결 - $serverUrl');
+    await Future.delayed(Duration(seconds: 1));
+    _connectionStatusController.add(ConnectionStatus.connected);
+    return true;
   }
 
   @override
   Future<void> disconnect() async {
-    if (!_isConnected) return;
-
-    _connectionStatusController.add(ConnectionStatus.disconnecting);
-
-    try {
-      // 서버에 연결 종료 요청 (필요하다면)
-      if (_serverUrl != null) {
-        await _client
-            .get(Uri.parse('$_serverUrl/disconnect'))
-            .timeout(const Duration(seconds: 3))
-            .catchError((e) {
-          // 오류는 무시하고 로그만 남김
-          print('연결 해제 요청 오류: $e');
-        });
-      }
-    } finally {
-      // 상태 업데이트
-      _isConnected = false;
-      _connectionStatusController.add(ConnectionStatus.disconnected);
-    }
+    print('목업: 스트리밍 서버 연결 해제');
+    await Future.delayed(Duration(milliseconds: 500));
+    _connectionStatusController.add(ConnectionStatus.disconnected);
   }
 
   @override
-  Future<http.Response?> get(String endpoint,
+  Future<dynamic> get(String endpoint, {Map<String, String>? headers}) async {
+    print('목업: GET 요청 - $endpoint');
+    await Future.delayed(Duration(milliseconds: 300));
+    return MockHttpResponse(
+      statusCode: 200,
+      body: jsonEncode({'status': 'success', 'endpoint': endpoint}),
+    );
+  }
+
+  @override
+  Future<dynamic> post(String endpoint, dynamic data,
       {Map<String, String>? headers}) async {
-    if (!_isConnected || _serverUrl == null) {
-      onError('서버에 연결되어 있지 않습니다');
-      return null;
-    }
-
-    try {
-      final uri = Uri.parse('$_serverUrl/$endpoint');
-      return await _client.get(uri, headers: headers);
-    } catch (e) {
-      onError('GET 요청 실패: $e');
-      return null;
-    }
+    print('목업: POST 요청 - $endpoint');
+    await Future.delayed(Duration(milliseconds: 500));
+    return MockHttpResponse(
+      statusCode: 200,
+      body: jsonEncode({'status': 'success', 'endpoint': endpoint}),
+    );
   }
 
   @override
-  Future<http.Response?> post(
-    String endpoint,
-    dynamic data, {
-    Map<String, String>? headers,
-  }) async {
-    if (!_isConnected || _serverUrl == null) {
-      onError('서버에 연결되어 있지 않습니다');
-      return null;
-    }
-
-    try {
-      final uri = Uri.parse('$_serverUrl/$endpoint');
-
-      // 요청 본문 준비 (JSON 또는 바이너리)
-      if (data is List<int>) {
-        // 바이너리 데이터
-        return await _client.post(
-          uri,
-          headers: headers,
-          body: data,
-        );
-      } else {
-        // JSON 데이터
-        final jsonHeaders = {
-          'Content-Type': 'application/json',
-          ...?headers,
-        };
-
-        return await _client.post(
-          uri,
-          headers: jsonHeaders,
-          body: jsonEncode(data),
-        );
-      }
-    } catch (e) {
-      onError('POST 요청 실패: $e');
-      return null;
-    }
+  Future<dynamic> put(String endpoint, dynamic data,
+      {Map<String, String>? headers}) async {
+    print('목업: PUT 요청 - $endpoint');
+    await Future.delayed(Duration(milliseconds: 400));
+    return MockHttpResponse(
+      statusCode: 200,
+      body: jsonEncode({'status': 'updated', 'endpoint': endpoint}),
+    );
   }
 
   @override
-  Future<http.Response?> put(
-    String endpoint,
-    dynamic data, {
-    Map<String, String>? headers,
-  }) async {
-    if (!_isConnected || _serverUrl == null) {
-      onError('서버에 연결되어 있지 않습니다');
-      return null;
-    }
-
-    try {
-      final uri = Uri.parse('$_serverUrl/$endpoint');
-
-      // 요청 본문 준비 (JSON 또는 바이너리)
-      if (data is List<int>) {
-        // 바이너리 데이터
-        return await _client.put(
-          uri,
-          headers: headers,
-          body: data,
-        );
-      } else {
-        // JSON 데이터
-        final jsonHeaders = {
-          'Content-Type': 'application/json',
-          ...?headers,
-        };
-
-        return await _client.put(
-          uri,
-          headers: jsonHeaders,
-          body: jsonEncode(data),
-        );
-      }
-    } catch (e) {
-      onError('PUT 요청 실패: $e');
-      return null;
-    }
+  Future<dynamic> delete(String endpoint,
+      {Map<String, String>? headers}) async {
+    print('목업: DELETE 요청 - $endpoint');
+    await Future.delayed(Duration(milliseconds: 300));
+    return MockHttpResponse(
+      statusCode: 200,
+      body: jsonEncode({'status': 'deleted', 'endpoint': endpoint}),
+    );
   }
 
   @override
-  Future<http.Response?> delete(
-    String endpoint, {
-    Map<String, String>? headers,
-  }) async {
-    if (!_isConnected || _serverUrl == null) {
-      onError('서버에 연결되어 있지 않습니다');
-      return null;
-    }
-
-    try {
-      final uri = Uri.parse('$_serverUrl/$endpoint');
-      return await _client.delete(uri, headers: headers);
-    } catch (e) {
-      onError('DELETE 요청 실패: $e');
-      return null;
-    }
+  Future<dynamic> uploadFile(String endpoint, List<int> file,
+      {Map<String, String>? headers}) async {
+    print('목업: 파일 업로드 - $endpoint, ${file.length} bytes');
+    await Future.delayed(Duration(seconds: 1));
+    return MockHttpResponse(
+      statusCode: 200,
+      body: jsonEncode({'status': 'uploaded', 'file_size': file.length}),
+    );
   }
+}
 
-  @override
-  Future<http.Response?> uploadFile(
-    String endpoint,
-    List<int> file, {
-    Map<String, String>? headers,
-  }) async {
-    if (!_isConnected || _serverUrl == null) {
-      onError('서버에 연결되어 있지 않습니다');
-      return null;
-    }
+/// 목업 HTTP 응답 클래스
+class MockHttpResponse {
+  final int statusCode;
+  final String body;
+  final Map<String, String> headers;
 
-    try {
-      final uri = Uri.parse('$_serverUrl/$endpoint');
-
-      // 파일 업로드를 위한 헤더 설정
-      final uploadHeaders = {
-        'Content-Type': 'application/octet-stream',
-        ...?headers,
-      };
-
-      return await _client.post(
-        uri,
-        headers: uploadHeaders,
-        body: file,
-      );
-    } catch (e) {
-      onError('파일 업로드 실패: $e');
-      return null;
-    }
-  }
-
-  @override
-  void dispose() {
-    if (_isConnected) {
-      disconnect();
-    }
-    _client.close();
-    _connectionStatusController.close();
-  }
+  MockHttpResponse({
+    required this.statusCode,
+    required this.body,
+    this.headers = const {},
+  });
 }
