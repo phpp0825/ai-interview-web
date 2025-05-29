@@ -38,23 +38,63 @@ class InterviewWidget extends StatelessWidget {
     required Color color,
     required VoidCallback onTap,
   }) {
-    // 화면 너비에 따라 스타일 조정
+    // 화면 너비와 높이에 따라 스타일 조정
     final screenWidth = MediaQuery.of(context).size.width;
-    final isSmallScreen = screenWidth < 600;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isSmallScreen = screenWidth < 800; // 기준을 800으로 변경
+    final isVerySmallScreen = screenWidth < 480; // 매우 작은 화면 추가
+    final isShortScreen = screenHeight < 600; // 세로가 짧은 화면
+    final isVeryShortScreen = screenHeight < 500; // 매우 짧은 화면
 
-    // 반응형 스타일 설정
-    final double cardHeight = isSmallScreen ? 180 : 220;
-    final double imageHeight = isSmallScreen ? 140 : 200;
-    final double fontSize = isSmallScreen ? 18 : 22;
-    final double descFontSize = isSmallScreen ? 12 : 14;
-    final int maxLines = isSmallScreen ? 2 : 3;
-    final double titleSpace = isSmallScreen ? 8 : 12;
-    final double buttonSpace = isSmallScreen ? 12 : 20;
-    final double padding = isSmallScreen ? 12 : 20;
-    final double buttonPadding = isSmallScreen ? 8 : 12;
+    // 반응형 스타일 설정 - 화면 높이도 고려한 더 세밀한 조정
+    final double cardHeight = isVeryShortScreen
+        ? 130
+        : (isShortScreen
+            ? 140
+            : (isVerySmallScreen ? 160 : (isSmallScreen ? 180 : 220)));
+    final double imageHeight = isVeryShortScreen
+        ? 100
+        : (isShortScreen
+            ? 110
+            : (isVerySmallScreen ? 120 : (isSmallScreen ? 140 : 200)));
+    final double fontSize = isVeryShortScreen
+        ? 14
+        : (isShortScreen
+            ? 15
+            : (isVerySmallScreen ? 16 : (isSmallScreen ? 18 : 22)));
+    final double descFontSize = isVeryShortScreen
+        ? 10
+        : (isShortScreen
+            ? 11
+            : (isVerySmallScreen ? 11 : (isSmallScreen ? 12 : 14)));
+    final int maxLines =
+        (isVeryShortScreen || isVerySmallScreen) ? 1 : (isSmallScreen ? 2 : 3);
+    final double titleSpace = isVeryShortScreen
+        ? 4
+        : (isShortScreen
+            ? 5
+            : (isVerySmallScreen ? 6 : (isSmallScreen ? 8 : 12)));
+    final double buttonSpace = isVeryShortScreen
+        ? 6
+        : (isShortScreen
+            ? 7
+            : (isVerySmallScreen ? 8 : (isSmallScreen ? 12 : 20)));
+    final double padding = isVeryShortScreen
+        ? 6
+        : (isShortScreen
+            ? 7
+            : (isVerySmallScreen ? 8 : (isSmallScreen ? 12 : 20)));
+    final double buttonPadding = isVeryShortScreen
+        ? 4
+        : (isShortScreen
+            ? 5
+            : (isVerySmallScreen ? 6 : (isSmallScreen ? 8 : 12)));
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: EdgeInsets.only(
+          bottom: isVeryShortScreen
+              ? 8
+              : (isShortScreen ? 10 : (isVerySmallScreen ? 12 : 20))),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -79,7 +119,9 @@ class InterviewWidget extends StatelessWidget {
               children: [
                 // 왼쪽: 이미지 부분
                 Expanded(
-                  flex: 4,
+                  flex: (isVeryShortScreen || isVerySmallScreen)
+                      ? 3
+                      : 4, // 작은 화면에서는 이미지 영역 축소
                   child: Container(
                     decoration: BoxDecoration(
                       color: color.withOpacity(0.15),
@@ -102,7 +144,13 @@ class InterviewWidget extends StatelessWidget {
                             // 이미지 로드 실패 시 아이콘 표시
                             return Icon(
                               Icons.videocam,
-                              size: 64,
+                              size: isVeryShortScreen
+                                  ? 30
+                                  : (isShortScreen
+                                      ? 35
+                                      : (isVerySmallScreen
+                                          ? 40
+                                          : (isSmallScreen ? 50 : 64))),
                               color: color.withOpacity(0.5),
                             );
                           },
@@ -114,7 +162,9 @@ class InterviewWidget extends StatelessWidget {
 
                 // 오른쪽: 텍스트 부분
                 Expanded(
-                  flex: 6,
+                  flex: (isVeryShortScreen || isVerySmallScreen)
+                      ? 7
+                      : 6, // 작은 화면에서는 텍스트 영역 확대
                   child: Padding(
                     padding: EdgeInsets.all(padding),
                     child: Column(
@@ -133,14 +183,16 @@ class InterviewWidget extends StatelessWidget {
                         SizedBox(height: titleSpace),
 
                         // 설명
-                        Text(
-                          description,
-                          maxLines: maxLines,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: descFontSize,
-                            color: Colors.black54,
-                            height: 1.5,
+                        Flexible(
+                          child: Text(
+                            description,
+                            maxLines: maxLines,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: descFontSize,
+                              color: Colors.black54,
+                              height: 1.2, // 줄 간격 더 조정
+                            ),
                           ),
                         ),
                         SizedBox(height: buttonSpace),
@@ -159,12 +211,27 @@ class InterviewWidget extends StatelessWidget {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30),
                             ),
+                            minimumSize: Size(
+                                0,
+                                isVeryShortScreen
+                                    ? 28
+                                    : (isShortScreen
+                                        ? 30
+                                        : (isVerySmallScreen
+                                            ? 32
+                                            : 36))), // 최소 높이 설정
                           ),
                           child: Text(
                             '시작하기',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: isSmallScreen ? 14 : 15,
+                              fontSize: isVeryShortScreen
+                                  ? 11
+                                  : (isShortScreen
+                                      ? 12
+                                      : (isVerySmallScreen
+                                          ? 12
+                                          : (isSmallScreen ? 14 : 15))),
                             ),
                           ),
                         ),

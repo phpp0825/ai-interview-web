@@ -125,23 +125,63 @@ class ResumeWidget extends StatelessWidget {
     required Color color,
     required VoidCallback onTap,
   }) {
-    // 화면 너비에 따라 스타일 조정
+    // 화면 너비와 높이에 따라 스타일 조정
     final screenWidth = MediaQuery.of(context).size.width;
-    final isSmallScreen = screenWidth < 600;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isSmallScreen = screenWidth < 800; // 기준을 800으로 변경
+    final isVerySmallScreen = screenWidth < 480; // 매우 작은 화면 추가
+    final isShortScreen = screenHeight < 600; // 세로가 짧은 화면
+    final isVeryShortScreen = screenHeight < 500; // 매우 짧은 화면
 
-    // 반응형 스타일 설정
-    final double cardHeight = isSmallScreen ? 180 : 220;
-    final double imageHeight = isSmallScreen ? 140 : 200;
-    final double fontSize = isSmallScreen ? 18 : 22;
-    final double descFontSize = isSmallScreen ? 12 : 14;
-    final int maxLines = isSmallScreen ? 2 : 3;
-    final double titleSpace = isSmallScreen ? 8 : 12;
-    final double buttonSpace = isSmallScreen ? 12 : 20;
-    final double padding = isSmallScreen ? 12 : 20;
-    final double buttonPadding = isSmallScreen ? 8 : 12;
+    // 반응형 스타일 설정 - 화면 높이도 고려한 더 세밀한 조정
+    final double cardHeight = isVeryShortScreen
+        ? 130
+        : (isShortScreen
+            ? 140
+            : (isVerySmallScreen ? 160 : (isSmallScreen ? 180 : 220)));
+    final double imageHeight = isVeryShortScreen
+        ? 100
+        : (isShortScreen
+            ? 110
+            : (isVerySmallScreen ? 120 : (isSmallScreen ? 140 : 200)));
+    final double fontSize = isVeryShortScreen
+        ? 14
+        : (isShortScreen
+            ? 15
+            : (isVerySmallScreen ? 16 : (isSmallScreen ? 18 : 22)));
+    final double descFontSize = isVeryShortScreen
+        ? 10
+        : (isShortScreen
+            ? 11
+            : (isVerySmallScreen ? 11 : (isSmallScreen ? 12 : 14)));
+    final int maxLines =
+        (isVeryShortScreen || isVerySmallScreen) ? 1 : (isSmallScreen ? 2 : 3);
+    final double titleSpace = isVeryShortScreen
+        ? 4
+        : (isShortScreen
+            ? 5
+            : (isVerySmallScreen ? 6 : (isSmallScreen ? 8 : 12)));
+    final double buttonSpace = isVeryShortScreen
+        ? 6
+        : (isShortScreen
+            ? 7
+            : (isVerySmallScreen ? 8 : (isSmallScreen ? 12 : 20)));
+    final double padding = isVeryShortScreen
+        ? 6
+        : (isShortScreen
+            ? 7
+            : (isVerySmallScreen ? 8 : (isSmallScreen ? 12 : 20)));
+    final double buttonPadding = isVeryShortScreen
+        ? 4
+        : (isShortScreen
+            ? 5
+            : (isVerySmallScreen ? 6 : (isSmallScreen ? 8 : 12)));
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: EdgeInsets.only(
+          bottom: isVeryShortScreen
+              ? 8
+              : (isShortScreen ? 10 : (isVerySmallScreen ? 12 : 20))),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -166,7 +206,9 @@ class ResumeWidget extends StatelessWidget {
               children: [
                 // 왼쪽: 이미지 부분
                 Expanded(
-                  flex: 4,
+                  flex: (isVeryShortScreen || isVerySmallScreen)
+                      ? 3
+                      : 4, // 작은 화면에서는 이미지 영역 축소
                   child: Container(
                     decoration: BoxDecoration(
                       color: color.withOpacity(0.15),
@@ -178,12 +220,12 @@ class ResumeWidget extends StatelessWidget {
                     child: Padding(
                       padding: EdgeInsets.all(padding / 2),
                       child: Container(
-                        width: double.infinity, // 컨테이너 너비를 최대로 설정
+                        width: double.infinity,
                         height: imageHeight,
                         alignment: Alignment.center,
                         child: Image.asset(
                           imagePath,
-                          fit: BoxFit.contain, // 이미지가 잘리지 않도록 설정
+                          fit: BoxFit.contain,
                           height: imageHeight,
                           errorBuilder: (context, error, stackTrace) {
                             print('이미지 로드 오류: $error');
@@ -193,18 +235,31 @@ class ResumeWidget extends StatelessWidget {
                                 children: [
                                   Icon(
                                     Icons.broken_image,
-                                    size: isSmallScreen ? 40 : 50,
+                                    size: isVeryShortScreen
+                                        ? 25
+                                        : (isShortScreen
+                                            ? 28
+                                            : (isVerySmallScreen
+                                                ? 30
+                                                : (isSmallScreen ? 40 : 50))),
                                     color: Colors.grey,
                                   ),
-                                  SizedBox(height: isSmallScreen ? 4 : 8),
-                                  Text(
-                                    '이미지를 불러올 수 없습니다',
-                                    style: TextStyle(
-                                      color: Colors.grey,
-                                      fontSize: isSmallScreen ? 10 : 12,
+                                  if (!(isVeryShortScreen ||
+                                      isVerySmallScreen)) // 매우 작은 화면에서는 텍스트 숨김
+                                    SizedBox(
+                                        height: isShortScreen
+                                            ? 2
+                                            : (isSmallScreen ? 4 : 8)),
+                                  if (!(isVeryShortScreen ||
+                                      isVerySmallScreen)) // 매우 작은 화면에서는 텍스트 숨김
+                                    Text(
+                                      '이미지를 불러올 수 없습니다',
+                                      style: TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: isSmallScreen ? 10 : 12,
+                                      ),
+                                      textAlign: TextAlign.center,
                                     ),
-                                    textAlign: TextAlign.center,
-                                  ),
                                 ],
                               ),
                             );
@@ -217,7 +272,9 @@ class ResumeWidget extends StatelessWidget {
 
                 // 오른쪽: 텍스트 부분
                 Expanded(
-                  flex: 6,
+                  flex: (isVeryShortScreen || isVerySmallScreen)
+                      ? 7
+                      : 6, // 작은 화면에서는 텍스트 영역 확대
                   child: Padding(
                     padding: EdgeInsets.all(padding),
                     child: Column(
@@ -235,14 +292,16 @@ class ResumeWidget extends StatelessWidget {
                         ),
                         SizedBox(height: titleSpace),
                         // 설명
-                        Text(
-                          description,
-                          maxLines: maxLines,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: descFontSize,
-                            color: Colors.black54,
-                            height: 1.5,
+                        Flexible(
+                          child: Text(
+                            description,
+                            maxLines: maxLines,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: descFontSize,
+                              color: Colors.black54,
+                              height: 1.2, // 줄 간격 더 조정
+                            ),
                           ),
                         ),
                         SizedBox(height: buttonSpace),
@@ -260,12 +319,27 @@ class ResumeWidget extends StatelessWidget {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30),
                             ),
+                            minimumSize: Size(
+                                0,
+                                isVeryShortScreen
+                                    ? 28
+                                    : (isShortScreen
+                                        ? 30
+                                        : (isVerySmallScreen
+                                            ? 32
+                                            : 36))), // 최소 높이 설정
                           ),
                           child: Text(
                             '시작하기',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: isSmallScreen ? 14 : 15,
+                              fontSize: isVeryShortScreen
+                                  ? 11
+                                  : (isShortScreen
+                                      ? 12
+                                      : (isVerySmallScreen
+                                          ? 12
+                                          : (isSmallScreen ? 14 : 15))),
                             ),
                           ),
                         ),

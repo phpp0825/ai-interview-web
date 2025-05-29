@@ -101,32 +101,41 @@ class HomePageContent extends StatelessWidget {
   // 메인 본문 위젯
   Widget _buildBody(
       BuildContext context, HomeController controller, Color primaryColor) {
-    // 화면 크기 확인
+    // 화면 크기 확인 - 더 정확한 반응형 기준 설정
     final screenWidth = MediaQuery.of(context).size.width;
-    final isSmallScreen = screenWidth < 600;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isSmallScreen = screenWidth < 800; // 기준을 800픽셀로 변경
+    final isVerySmallScreen = screenWidth < 480; // 매우 작은 화면용 추가
 
-    // 기본 UI (큰 화면용)
+    // 화면 높이도 고려 - 세로가 짧은 경우도 처리
+    final isShortScreen = screenHeight < 600;
+    final isVeryShortScreen = screenHeight < 500;
+
+    // 스크롤이 필요한 조건을 더 엄격하게 설정
+    final needsScroll = isSmallScreen || isShortScreen || screenHeight < 700;
+
+    // 기본 UI (큰 화면용) - 데스크톱 및 태블릿
     Widget content = Container(
       color: Colors.white,
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24.0),
+          padding: EdgeInsets.all(isVerySmallScreen ? 12.0 : 24.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Welcome to the Ainterview!',
                 style: TextStyle(
-                  fontSize: 28,
+                  fontSize: isVerySmallScreen ? 20 : (isSmallScreen ? 24 : 28),
                   fontWeight: FontWeight.bold,
                   color: Colors.deepPurple,
                 ),
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: isVerySmallScreen ? 16 : 24),
               Expanded(
                 child: LayoutBuilder(builder: (context, constraints) {
                   final availableWidth = constraints.maxWidth;
-                  final sideMargin = availableWidth * 0.1;
+                  final sideMargin = isSmallScreen ? 0.0 : availableWidth * 0.1;
 
                   return Padding(
                     padding: EdgeInsets.symmetric(horizontal: sideMargin),
@@ -152,37 +161,55 @@ class HomePageContent extends StatelessWidget {
       ),
     );
 
-    // 작은 화면일 경우 스크롤 가능한 UI로 대체
-    if (isSmallScreen) {
+    // 스크롤이 필요한 경우 스크롤 가능한 UI로 대체
+    if (needsScroll) {
       content = Container(
         color: Colors.white,
         child: SafeArea(
           child: ScrollConfiguration(
             behavior: NoScrollbarBehavior(),
             child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: EdgeInsets.all(
+                    isVerySmallScreen ? 8.0 : (isShortScreen ? 12.0 : 16.0)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Welcome to the Ainterview!',
                       style: TextStyle(
-                        fontSize: 24,
+                        fontSize:
+                            isVerySmallScreen ? 18 : (isShortScreen ? 20 : 24),
                         fontWeight: FontWeight.bold,
                         color: Colors.deepPurple,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(
+                        height:
+                            isVerySmallScreen ? 8 : (isShortScreen ? 10 : 16)),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      padding: EdgeInsets.symmetric(
+                        horizontal:
+                            isVerySmallScreen ? 2 : (isShortScreen ? 4 : 8),
+                      ),
                       child: Column(
                         children: [
                           ResumeWidget(color: primaryColor),
-                          const SizedBox(height: 16),
+                          SizedBox(
+                              height: isVerySmallScreen
+                                  ? 8
+                                  : (isShortScreen ? 10 : 16)),
                           InterviewWidget(color: primaryColor),
-                          const SizedBox(height: 16),
+                          SizedBox(
+                              height: isVerySmallScreen
+                                  ? 8
+                                  : (isShortScreen ? 10 : 16)),
                           ReportWidget(color: primaryColor),
+                          SizedBox(
+                              height: isVerySmallScreen
+                                  ? 16
+                                  : (isShortScreen ? 20 : 24)), // 하단 여백 추가
                         ],
                       ),
                     ),

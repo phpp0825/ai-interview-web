@@ -99,7 +99,7 @@ class _ReportListViewContent extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: () => controller.navigateToResumeView(context),
+              onPressed: () => Navigator.pushNamed(context, '/resume'),
               icon: const Icon(Icons.add),
               label: const Text('이력서 작성하기'),
               style: ElevatedButton.styleFrom(
@@ -161,12 +161,11 @@ class _ReportListViewContent extends StatelessWidget {
           ),
           child: InkWell(
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ReportView(reportId: report['id']),
-                ),
-              ).then((_) => controller.refreshReportList());
+              // 리포트 상세 화면으로 이동
+              Navigator.of(context).pushNamed(
+                '/report',
+                arguments: report['id'],
+              );
             },
             borderRadius: BorderRadius.circular(12),
             child: Padding(

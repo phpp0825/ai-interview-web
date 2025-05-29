@@ -1,15 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/report_model.dart';
 import '../services/report/interfaces/report_service_interface.dart';
 import '../core/di/service_locator.dart';
-import '../views/resume_view.dart';
 
-/// 리포트 컨트롤러
-///
-/// 리포트 관련 UI 상태 관리 및 사용자 상호작용을 처리합니다.
-/// 비즈니스 로직은 서비스 계층으로 위임합니다.
+/// 간단한 리포트 컨트롤러
+/// 리포트 목록과 기본 데이터만 관리합니다.
 class ReportController extends ChangeNotifier {
   // 의존성
   final IReportService _reportService;
@@ -18,8 +14,6 @@ class ReportController extends ChangeNotifier {
   ReportModel? _reportData;
   bool _isLoading = true;
   String? _error;
-  VideoPlayerController? _videoPlayerController;
-  bool _isVideoInitialized = false;
   bool _isLoadingReports = false;
   List<Map<String, dynamic>> _reportList = [];
   bool _isCreatingReport = false;
@@ -28,13 +22,26 @@ class ReportController extends ChangeNotifier {
   ReportModel? get reportData => _reportData;
   bool get isLoading => _isLoading;
   String? get error => _error;
-  VideoPlayerController? get videoPlayerController => _videoPlayerController;
-  bool get isVideoInitialized => _isVideoInitialized;
   bool get isLoadingReports => _isLoadingReports;
   List<Map<String, dynamic>> get reportList => _reportList;
   bool get isCreatingReport => _isCreatingReport;
 
-  // 생성자
+  // 비디오 관련 getter들 (목업)
+  bool get isVideoInitialized => false;
+  dynamic get videoPlayerController => null;
+  dynamic seekToTime(int time) {
+    print('비디오를 $time초로 이동합니다');
+  }
+
+  dynamic formatDuration(int seconds) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    int hours = seconds ~/ 3600;
+    int minutes = (seconds % 3600) ~/ 60;
+    int secs = seconds % 60;
+    return "${twoDigits(hours)}:${twoDigits(minutes)}:${twoDigits(secs)}";
+  }
+
+  /// 생성자
   ReportController() : _reportService = serviceLocator<IReportService>() {
     loadReportList();
   }
@@ -67,42 +74,11 @@ class ReportController extends ChangeNotifier {
       final report = await _reportService.getReport(reportId);
       _reportData = report;
 
-      // 비디오 플레이어 초기화
-      await _initializeVideoPlayer();
-
       _setLoading(false);
     } catch (e) {
       _setError('리포트를 불러오는데 실패했습니다: $e');
       _setLoading(false);
     }
-  }
-
-  // 비디오 플레이어 초기화
-  Future<void> _initializeVideoPlayer() async {
-    if (_reportData?.videoUrl == null || _reportData!.videoUrl.isEmpty) return;
-
-    try {
-      _videoPlayerController =
-          VideoPlayerController.network(_reportData!.videoUrl);
-      await _videoPlayerController!.initialize();
-      _isVideoInitialized = true;
-      notifyListeners();
-    } catch (e) {
-      _setError('비디오를 불러오는데 실패했습니다: $e');
-    }
-  }
-
-  // 특정 시간으로 이동
-  void seekToTime(int seconds) {
-    if (_videoPlayerController == null) return;
-    _videoPlayerController!.seekTo(Duration(seconds: seconds));
-  }
-
-  // 시간 포맷팅 유틸리티 함수
-  String formatDuration(int seconds) {
-    final minutes = seconds ~/ 60;
-    final remainingSeconds = seconds % 60;
-    return '$minutes:${remainingSeconds.toString().padLeft(2, '0')}';
   }
 
   // 날짜 포맷팅 유틸리티 함수
@@ -189,11 +165,6 @@ class ReportController extends ChangeNotifier {
 
       // 현재 로드된 보고서가 업데이트 대상과 같다면 비디오 플레이어 갱신
       if (result && _reportData != null && _reportData!.id == reportId) {
-        // 기존 컨트롤러 해제
-        _videoPlayerController?.dispose();
-        _videoPlayerController = null;
-        _isVideoInitialized = false;
-
         // 보고서 데이터 새로 로드
         await loadReport(reportId);
       }
@@ -232,62 +203,6 @@ class ReportController extends ChangeNotifier {
     await loadReportList();
   }
 
-  // 리포트 생성 다이얼로그 표시
-  void showCreateReportDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          title: Row(
-            children: [
-              Icon(Icons.assessment, color: Colors.blue),
-              const SizedBox(width: 10),
-              const Text('새 리포트 생성'),
-            ],
-          ),
-          content: const Text(
-            '새로운 면접 리포트를 생성하시겠습니까?\n이력서 정보가 필요합니다.',
-            style: TextStyle(fontSize: 16),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('취소'),
-            ),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.arrow_forward),
-              label: const Text('이력서로 이동'),
-              onPressed: () {
-                Navigator.of(context).pop();
-                navigateToResumeView(context);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  // 이력서 화면으로 이동
-  void navigateToResumeView(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const ResumeView(),
-      ),
-    ).then((_) {
-      // 이력서 작성 후 돌아왔을 때 목록 새로고침
-      refreshReportList();
-    });
-  }
-
   // 로딩 상태 설정
   void _setLoading(bool loading) {
     _isLoading = loading;
@@ -303,7 +218,6 @@ class ReportController extends ChangeNotifier {
   // 컨트롤러 리소스 해제
   @override
   void dispose() {
-    _videoPlayerController?.dispose();
     super.dispose();
   }
 }

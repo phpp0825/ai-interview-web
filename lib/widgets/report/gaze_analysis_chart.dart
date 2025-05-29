@@ -160,11 +160,11 @@ class GazeAnalysisChart extends StatelessWidget {
             interval: 0.5,
             getTitlesWidget: (double value, TitleMeta meta) {
               String text = '';
-              if (value == -1) {
+              if (value >= -1.1 && value <= -0.9) {
                 text = '왼쪽';
-              } else if (value == 0) {
+              } else if (value >= -0.1 && value <= 0.1) {
                 text = '중앙';
-              } else if (value == 1) {
+              } else if (value >= 0.9 && value <= 1.1) {
                 text = '오른쪽';
               }
 
@@ -190,11 +190,11 @@ class GazeAnalysisChart extends StatelessWidget {
             interval: 0.5,
             getTitlesWidget: (double value, TitleMeta meta) {
               String text = '';
-              if (value == -1) {
+              if (value >= -1.1 && value <= -0.9) {
                 text = '아래';
-              } else if (value == 0) {
+              } else if (value >= -0.1 && value <= 0.1) {
                 text = '중앙';
-              } else if (value == 1) {
+              } else if (value >= 0.9 && value <= 1.1) {
                 text = '위';
               }
 
@@ -219,11 +219,15 @@ class GazeAnalysisChart extends StatelessWidget {
         touchTooltipData: ScatterTouchTooltipData(
           tooltipBgColor: Colors.purple.withOpacity(0.8),
           getTooltipItems: (ScatterSpot touchedSpot) {
+            // 시선 위치를 한국어로 설명
+            String position =
+                _getGazePositionDescription(touchedSpot.x, touchedSpot.y);
             return ScatterTooltipItem(
-              '시선 위치: (${touchedSpot.x.toStringAsFixed(1)}, ${touchedSpot.y.toStringAsFixed(1)})',
+              '시선: $position\n위치: (${touchedSpot.x.toStringAsFixed(1)}, ${touchedSpot.y.toStringAsFixed(1)})',
               textStyle: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
+                fontSize: 12,
               ),
               bottomMargin: 10,
             );
@@ -248,5 +252,40 @@ class GazeAnalysisChart extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  // 시선 위치를 한국어로 설명하는 함수
+  String _getGazePositionDescription(double x, double y) {
+    String horizontal = '';
+    String vertical = '';
+
+    // 수평 위치 결정
+    if (x >= -1.1 && x <= -0.4) {
+      horizontal = '왼쪽';
+    } else if (x >= -0.3 && x <= 0.3) {
+      horizontal = '중앙';
+    } else if (x >= 0.4 && x <= 1.1) {
+      horizontal = '오른쪽';
+    }
+
+    // 수직 위치 결정
+    if (y >= -1.1 && y <= -0.4) {
+      vertical = '아래';
+    } else if (y >= -0.3 && y <= 0.3) {
+      vertical = '중앙';
+    } else if (y >= 0.4 && y <= 1.1) {
+      vertical = '위';
+    }
+
+    // 위치 조합
+    if (horizontal == '중앙' && vertical == '중앙') {
+      return '정중앙'; // 가장 이상적인 시선
+    } else if (horizontal == '중앙') {
+      return '$vertical 중앙';
+    } else if (vertical == '중앙') {
+      return '$horizontal 중앙';
+    } else {
+      return '$vertical $horizontal';
+    }
   }
 }
