@@ -102,8 +102,6 @@ class _LoginFormState extends State<LoginForm> {
     }
   }
 
-  
-
   // 구글 로그인 처리
   Future<void> _signInWithGoogle() async {
     setState(() {
@@ -416,16 +414,24 @@ class _LoginFormState extends State<LoginForm> {
     return SizedBox(
       width: double.infinity,
       child: OutlinedButton.icon(
-        icon: Image.asset(
-          'assets/images/google_logo.png',
+        icon: Container(
+          width: 24,
           height: 24,
-          errorBuilder: (context, error, stackTrace) {
-            return const Icon(
-              Icons.login,
-              size: 24,
-              color: Colors.deepPurple,
-            );
-          },
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(2),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Center(
+            child: Text(
+              'G',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue.shade600,
+              ),
+            ),
+          ),
         ),
         label: Text(
           'Google로 로그인',

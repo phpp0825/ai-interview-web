@@ -87,17 +87,33 @@ class _InterviewViewState extends State<InterviewView> {
 
   /// 면접 종료 처리
   Future<void> _handleStopInterview() async {
-    await _controller.stopFullInterview();
+    // 로딩 표시 (선택사항)
     if (mounted) {
-      final reportId = _controller.generatedReportId;
-      if (reportId != null) {
-        InterviewDialogs.showSnackBar(
-            context: context,
-            message:
-                '✅ 면접이 완료되었습니다!\n💼 AI 분석 리포트가 생성되어 클라우드에 안전하게 저장되었습니다.\n📊 리포트 ID: $reportId');
-      } else {
-        InterviewDialogs.showSnackBar(
-            context: context, message: '✅ 면접이 완료되었습니다. AI가 답변을 분석하고 있습니다...');
+      InterviewDialogs.showSnackBar(
+        context: context,
+        message: '🎬 면접을 종료하고 있습니다...',
+      );
+    }
+
+    // 면접 종료 처리
+    await _controller.stopFullInterview();
+
+    if (mounted) {
+      // 간단한 완료 메시지만 표시
+      InterviewDialogs.showSnackBar(
+        context: context,
+        message: '✅ 면접이 완료되었습니다!',
+      );
+
+      // 잠시 대기 후 홈 화면으로 이동
+      await Future.delayed(const Duration(milliseconds: 1500));
+
+      if (mounted) {
+        // 홈 화면으로 즉시 이동 (모든 이전 화면 제거)
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          '/',
+          (Route<dynamic> route) => false,
+        );
       }
     }
   }
@@ -105,10 +121,18 @@ class _InterviewViewState extends State<InterviewView> {
   /// 다음 영상으로 이동 처리
   Future<void> _handleNextVideo() async {
     try {
-      await _controller.moveToNextVideo();
+      // 업로드 시작 알림
       if (mounted) {
         InterviewDialogs.showSnackBar(
-            context: context, message: '🎬 다음 질문으로 이동합니다. 비디오가 업로드되었습니다.');
+            context: context, message: '📤 답변 영상을 업로드하고 있습니다...');
+      }
+
+      await _controller.moveToNextVideo();
+
+      // 업로드 완료 및 다음 질문 이동 알림
+      if (mounted) {
+        InterviewDialogs.showSnackBar(
+            context: context, message: '✅ 업로드 완료! 다음 질문이 시작됩니다.');
       }
     } catch (e) {
       if (mounted) {
@@ -234,6 +258,9 @@ class _InterviewViewState extends State<InterviewView> {
                   isInterviewStarted: controller.isInterviewStarted,
                   videoPath: controller.currentInterviewerVideoPath,
                   isVideoPlaying: controller.isInterviewerVideoPlaying,
+                  isCountdownActive: controller.isCountdownActive,
+                  countdownSeconds: controller.countdownSeconds,
+                  onVideoCompleted: controller.onInterviewerVideoCompleted,
                 ),
               ),
             ],

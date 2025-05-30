@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 
 /// 인터뷰 컨트롤 바 위젯
-///
-/// 초보 개발자를 위한 설명:
-/// 복잡한 단계 표시를 제거하고 그냥 면접 시작/종료 버튼만 남겼어요!
 class InterviewControlBar extends StatelessWidget {
   final bool isInterviewStarted;
   final bool isUploadingVideo;

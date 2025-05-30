@@ -192,29 +192,35 @@ class FirebaseReportRepository implements IReportRepository {
   @override
   Future<bool> deleteReport(String reportId) async {
     try {
+      print('🗑️ 리포트 삭제 시작: $reportId');
+
       final User? currentUser = _auth.currentUser;
       if (currentUser == null) {
-        throw Exception('로그인된 사용자가 없습니다.');
+        print('❌ 로그인된 사용자가 없습니다');
+        return false;
       }
 
       // 리포트 문서 조회
       final doc = await _firestore.collection('reports').doc(reportId).get();
       if (!doc.exists) {
-        throw Exception('존재하지 않는 리포트입니다.');
+        print('❌ 존재하지 않는 리포트입니다: $reportId');
+        return false;
       }
 
       final data = doc.data() as Map<String, dynamic>;
       if (data['userId'] != currentUser.uid) {
-        throw Exception('해당 리포트에 대한 접근 권한이 없습니다.');
+        print('❌ 해당 리포트에 대한 접근 권한이 없습니다');
+        return false;
       }
 
       // 리포트 삭제
       await _firestore.collection('reports').doc(reportId).delete();
 
+      print('✅ 리포트 삭제 완료: $reportId');
       return true;
     } catch (e) {
-      print('리포트 삭제 중 오류 발생: $e');
-      throw Exception('리포트를 삭제하는데 실패했습니다: $e');
+      print('❌ 리포트 삭제 중 오류 발생: $e');
+      return false;
     }
   }
 
@@ -272,6 +278,19 @@ class FirebaseReportRepository implements IReportRepository {
           .toList();
     }
 
+    // 비디오 URL 처리: videoUrls 배열이 있으면 첫 번째를 사용, 없으면 videoUrl 필드 사용
+    String videoUrl = '';
+    if (data['videoUrls'] != null && (data['videoUrls'] as List).isNotEmpty) {
+      // videoUrls 배열에서 첫 번째 URL 사용
+      videoUrl = (data['videoUrls'] as List).first.toString();
+      print('📹 비디오 URL 로드됨: $videoUrl');
+      print('📋 총 비디오 개수: ${(data['videoUrls'] as List).length}개');
+    } else {
+      // 기존 videoUrl 필드 사용 (하위 호환성)
+      videoUrl = data['videoUrl'] ?? '';
+      print('📹 기존 비디오 URL 사용: $videoUrl');
+    }
+
     return ReportModel(
       id: id,
       title: data['title'] ?? '면접 분석 보고서',
@@ -281,11 +300,10 @@ class FirebaseReportRepository implements IReportRepository {
       interviewType: data['interviewType'] ?? '직무면접',
       duration: data['duration'] ?? 30,
       score: data['score'] ?? 0,
-      videoUrl: data['videoUrl'] ?? '',
+      videoUrl: videoUrl, // 수정된 비디오 URL 처리
       timestamps: timestamps,
       speechSpeedData: speechSpeedData,
       gazeData: gazeData,
-      // 새로운 면접 세부 정보 필드들
       questionAnswers: questionAnswers,
       skillEvaluations: skillEvaluations,
       feedback: data['feedback'],
@@ -333,9 +351,17 @@ class FirebaseReportRepository implements IReportRepository {
   }) async {
     try {
       print('📊 ReportModel 형식으로 면접 리포트 생성 시작...');
+      print('🎬 받은 비디오 URL 개수: ${videoUrls.length}');
+      for (int i = 0; i < videoUrls.length; i++) {
+        print('🎬 비디오 ${i + 1}: ${videoUrls[i]}');
+      }
 
       // 리포트 ID 생성
       final reportId = 'report_${DateTime.now().millisecondsSinceEpoch}';
+
+      // 비디오 URL 처리: 첫 번째 URL을 메인 videoUrl로 사용
+      String mainVideoUrl = videoUrls.isNotEmpty ? videoUrls.first : '';
+      print('📹 메인 비디오 URL: $mainVideoUrl');
 
       // === 아래부터는 모두 목업 데이터로 고정 ===
       // 목업 기술 평가 생성
@@ -355,6 +381,41 @@ class FirebaseReportRepository implements IReportRepository {
       // 카테고리별 점수 생성
       final categoryScores = MockReportDataService.generateCategoryScores();
 
+      // 질문-답변 데이터 생성 (실제 비디오 URL들과 연결)
+      List<QuestionAnswerModel> questionAnswers = [];
+
+      // 기본 면접 질문들 (목업)
+      final defaultQuestions = [
+        '간단한 자기소개와 지원 동기를 말씀해 주세요.',
+        '팀 프로젝트에서 협업의 중요성과 본인의 역할에 대해 설명해 주세요.',
+        '새로운 기술을 학습하고 적용한 경험이 있다면 공유해 주세요.',
+      ];
+
+      // 각 질문에 해당하는 비디오 URL 연결
+      for (int i = 0; i < defaultQuestions.length; i++) {
+        final questionText = defaultQuestions[i];
+        // i번째 비디오 URL이 있으면 사용, 없으면 빈 문자열
+        final videoUrl = i < videoUrls.length ? videoUrls[i] : '';
+
+        questionAnswers.add(QuestionAnswerModel(
+          question: questionText,
+          answer: '답변 내용입니다.', // 목업 답변
+          score: 85 + (i * 2), // 질문별로 조금씩 다른 점수
+          evaluation: '좋은 답변입니다.', // 목업 피드백 (evaluation으로 수정)
+          videoUrl: videoUrl, // 실제 녹화된 비디오 URL 연결
+          answerDuration: 60, // 목업 답변 시간 (answerDuration으로 수정)
+        ));
+
+        if (videoUrl.isNotEmpty) {
+          print('🎬 질문 ${i + 1}: "${questionText}" → 비디오 연결됨');
+        } else {
+          print('⚠️ 질문 ${i + 1}: "${questionText}" → 비디오 없음');
+        }
+      }
+
+      print(
+          '✅ 총 ${questionAnswers.length}개 질문에 ${videoUrls.length}개 비디오 연결 완료');
+
       // ReportModel 직접 생성 (질문/답변/스킬/피드백 등도 목업)
       final report = ReportModel(
         id: reportId,
@@ -365,12 +426,11 @@ class FirebaseReportRepository implements IReportRepository {
         interviewType: '직무면접',
         duration: duration, // 실제 면접 시간
         score: totalScore,
-        videoUrl: videoUrls.isNotEmpty ? videoUrls.first : '',
+        videoUrl: mainVideoUrl, // 첫 번째 비디오 URL 사용
         timestamps: [], // 타임스탬프 제외
         speechSpeedData: speechSpeedData,
         gazeData: gazeData,
-        questionAnswers: MockReportDataService.generateMockQuestionAnswers(
-            questions, videoUrls),
+        questionAnswers: questionAnswers, // 실제 비디오 URL이 연결된 질문-답변 데이터
         skillEvaluations: skillEvaluations,
         feedback: feedback,
         grade: grade,
@@ -385,13 +445,16 @@ class FirebaseReportRepository implements IReportRepository {
         'status': 'completed',
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
-        'videoUrls': videoUrls, // 영상 URL 목록 저장
+        'videoUrls': videoUrls, // 모든 비디오 URL 저장 (하위 호환성)
+        'mainVideoUrl': mainVideoUrl, // 메인 비디오 URL 별도 저장
       });
 
       print('🎉 ReportModel 형식 리포트 저장 완료! ID: $reportId');
       print('⏱️ 면접 소요 시간: ${duration ~/ 60}분 ${duration % 60}초');
-      print('🎬 비디오 개수: ${videoUrls.length}개');
+      print('🎬 저장된 비디오 개수: ${videoUrls.length}개');
       print('📊 총점: $totalScore점 ($grade)');
+      print('📹 메인 비디오 URL 저장 완료: $mainVideoUrl');
+      print('🎯 각 질문별 비디오 URL 연결 완료');
 
       return reportId;
     } catch (e) {

@@ -41,6 +41,12 @@ class InterviewController extends ChangeNotifier {
   bool _isInterviewerVideoPlaying = false;
   String _currentInterviewerVideoPath = '';
 
+  // 카운트다운 관련 상태
+  bool _isCountdownActive = false;
+  int _countdownSeconds = 0;
+  Timer? _countdownTimer;
+  Timer? _videoCompletionTimer;
+
   // Getters
   bool get isLoading => _isLoading;
   bool get isInterviewStarted => _isInterviewStarted;
@@ -56,6 +62,10 @@ class InterviewController extends ChangeNotifier {
   bool get isInterviewerVideoPlaying => _isInterviewerVideoPlaying;
   String get currentInterviewerVideoPath => _currentInterviewerVideoPath;
   String? get generatedReportId => _generatedReportId;
+
+  // 카운트다운 관련 게터들
+  bool get isCountdownActive => _isCountdownActive;
+  int get countdownSeconds => _countdownSeconds;
 
   /// 생성자
   InterviewController() {
@@ -139,45 +149,145 @@ class InterviewController extends ChangeNotifier {
     }
 
     try {
+      print('🎬 면접 시작 준비 중...');
+
+      // 카메라 준비 상태 상세 확인
+      if (_cameraService == null) {
+        _setErrorMessage('카메라 서비스가 초기화되지 않았습니다.');
+        return false;
+      }
+
+      if (!_cameraService!.isInitialized) {
+        _setErrorMessage('카메라가 준비되지 않았습니다. 잠시 후 다시 시도해주세요.');
+        return false;
+      }
+
+      // 더미 카메라 모드 확인
+      if (_cameraService!.isUsingDummyCamera) {
+        print('⚠️ 더미 카메라 모드에서 면접을 진행합니다.');
+        print('   - 실제 영상은 녹화되지 않습니다.');
+        print('   - 브라우저에서 카메라 권한을 허용했는지 확인해주세요.');
+
+        // 더미 카메라 모드에서도 면접은 진행하되, 경고 메시지 표시
+        _setErrorMessage(
+            '카메라에 접근할 수 없습니다. 브라우저에서 카메라 권한을 허용해주세요.\n더미 모드로 면접을 진행하지만 영상이 녹화되지 않을 수 있습니다.');
+      }
+
+      // 웹 환경에서 카메라 컨트롤러 상태 확인
+      if (_cameraService!.controller != null) {
+        final controller = _cameraService!.controller!;
+        print('🔍 카메라 컨트롤러 상태 확인:');
+        print('   - 초기화됨: ${controller.value.isInitialized}');
+        print('   - 오류 상태: ${controller.value.hasError}');
+        print('   - 해상도: ${controller.value.previewSize}');
+        print('   - 오디오 활성화: ${controller.enableAudio}');
+
+        if (controller.value.hasError) {
+          _setErrorMessage('카메라 오류: ${controller.value.errorDescription}');
+          return false;
+        }
+      }
+
+      // 이미 녹화 중인 경우 중지
+      if (_cameraService!.isRecording) {
+        print('📹 기존 녹화 중지 중...');
+        await _cameraService!.stopVideoRecording();
+      }
+
       _isInterviewStarted = true;
       _interviewStartTime = DateTime.now();
       _currentQuestionIndex = 0; // 첫 번째 영상부터 시작
-      _playInterviewerVideo();
+
+      print('✅ 면접 상태 설정 완료, 첫 번째 질문 시작');
+
+      // 첫 번째 질문 영상 재생 및 녹화 시작
+      await _playInterviewerVideo();
+
       notifyListeners();
-      print('🎬 면접이 시작되었습니다!');
+      print('🎬 면접이 성공적으로 시작되었습니다!');
       return true;
     } catch (e) {
+      print('❌ 면접 시작 중 오류: $e');
       _setErrorMessage('면접 시작 중 오류가 발생했습니다: $e');
       return false;
     }
   }
 
-  /// 면접관 영상 재생 (비디오+음성 녹화 시작)
+  /// 면접관 영상 재생
   Future<void> _playInterviewerVideo() async {
     try {
-      // 현재 질문에 해당하는 면접관 영상 경로 설정
-      _currentInterviewerVideoPath =
-          'assets/videos/interviewer/question_${_currentQuestionIndex + 1}.mp4';
-      _isInterviewerVideoPlaying = true;
+      // 현재 질문에 해당하는 면접관 영상 경로 생성
+      final questionNumber = _currentQuestionIndex + 1;
+      final videoPath = 'assets/videos/question_$questionNumber.mp4';
+
+      print('🎭 면접관 영상 로드 시작: $videoPath');
+
+      _currentInterviewerVideoPath = videoPath;
+      _isInterviewerVideoPlaying = false; // 처음에는 로드만, 재생은 나중에
       notifyListeners();
 
-      print('🎬 면접관 영상 재생 시작: $_currentInterviewerVideoPath');
+      // 영상 로드 대기 후 재생 시작 (카운트다운은 영상 완료 후)
+      await Future.delayed(const Duration(seconds: 2)); // 영상 로드 대기 시간
 
-      // 비디오 녹화 시작 (음성도 함께 녹화됨!)
-      if (_cameraService != null) {
-        final recordingStarted = await _cameraService!.startVideoRecording();
-        if (recordingStarted) {
-          print('📹🎤 지원자 비디오+음성 녹화 시작 성공');
-        } else {
-          print('❌ 지원자 비디오+음성 녹화 시작 실패');
+      // 면접이 여전히 진행 중인 경우에만 재생 시작
+      if (_isInterviewStarted) {
+        print('▶️ 면접관 영상 재생 시작');
+        _isInterviewerVideoPlaying = true; // 재생 시작
+        notifyListeners();
+
+        // 영상 완료는 onInterviewerVideoCompleted 콜백으로 처리
+        print('📺 영상 완료 시 자동으로 5초 카운트다운 시작됩니다');
+      }
+    } catch (e) {
+      print('❌ 면접관 영상 재생 실패: $e');
+      _setErrorMessage('면접관 영상 재생 중 오류가 발생했습니다: $e');
+    }
+  }
+
+  /// 답변 녹화 스케줄링 (면접관 영상 재생 후)
+  void _scheduleAnswerRecording() {
+    // 이 메서드는 더 이상 사용하지 않음 - 카운트다운에서 직접 처리
+  }
+
+  /// 10초 카운트다운 시작
+  void _startCountdown() {
+    _isCountdownActive = true;
+    _countdownSeconds = 5; // 10초에서 5초로 변경
+    notifyListeners();
+
+    print('⏰ 답변 준비 카운트다운 시작: ${_countdownSeconds}초');
+
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      _countdownSeconds--;
+      print('⏰ 카운트다운: ${_countdownSeconds}초');
+      notifyListeners();
+
+      if (_countdownSeconds <= 0) {
+        // 카운트다운 완료 - 답변 녹화 시작 (면접관 영상은 정지)
+        timer.cancel();
+        _isCountdownActive = false;
+        _countdownSeconds = 0;
+        _isInterviewerVideoPlaying = false; // 면접관 영상 재생 중지
+        notifyListeners();
+
+        if (_isInterviewStarted) {
+          print('🎤 답변 녹화 시작 (질문 ${_currentQuestionIndex + 1})');
+          print('⏹️ 면접관 영상 재생 중지');
+          _startAnswerRecording();
         }
       }
+    });
+  }
 
-      // 별도 오디오 녹음 제거 (비디오에 음성이 포함되므로 불필요)
-      // 초보 개발자를 위한 설명: 비디오 녹화할 때 음성도 자동으로 녹화돼요!
+  /// 답변 녹화 시작
+  Future<void> _startAnswerRecording() async {
+    try {
+      if (_cameraService != null && !_cameraService!.isRecording) {
+        await _cameraService!.startVideoRecording();
+        print('📹 답변 녹화 시작됨 (질문 ${_currentQuestionIndex + 1})');
+      }
     } catch (e) {
-      print('면접관 영상 재생 중 오류: $e');
-      _setErrorMessage('면접관 영상 재생 중 오류가 발생했습니다: $e');
+      print('❌ 답변 녹화 시작 실패: $e');
     }
   }
 
@@ -191,23 +301,39 @@ class InterviewController extends ChangeNotifier {
 
   /// 다음 영상으로 이동 (비디오 업로드 포함)
   Future<void> moveToNextVideo() async {
-    const totalVideos = 8; // 총 영상 개수
+    const totalVideos = 3; // 총 질문 개수 (3개로 변경)
 
     try {
-      // 현재 녹화 중인 비디오 중지 및 업로드
+      print('📤 현재 답변 영상 업로드 시작...');
+
+      // 현재 녹화 중인 비디오 중지 및 업로드 완료까지 대기
       await _stopAndUploadCurrentVideo();
+
+      print('✅ 업로드 완료! 다음 단계로 진행합니다.');
 
       if (_currentQuestionIndex < totalVideos - 1) {
         _currentQuestionIndex++;
+        print('📋 다음 질문으로 이동: ${_currentQuestionIndex + 1}번째 질문');
+
+        // 이전 면접관 영상 상태 초기화
+        _isInterviewerVideoPlaying = false;
+        _currentInterviewerVideoPath = '';
+        notifyListeners();
+
+        // 잠시 대기 후 다음 면접관 영상 재생
+        await Future.delayed(const Duration(milliseconds: 500));
         await _playInterviewerVideo();
       } else {
-        // 모든 영상 완료 - 면접 종료
+        // 모든 질문 완료 - 면접 종료
+        print('🎉 모든 질문 완료! 면접을 종료합니다.');
         _isInterviewStarted = false;
+        _isInterviewerVideoPlaying = false;
+        _currentInterviewerVideoPath = '';
         await _generateFinalReport();
       }
       notifyListeners();
     } catch (e) {
-      print('다음 영상으로 이동 중 오류: $e');
+      print('❌ 다음 질문으로 이동 중 오류: $e');
       _setErrorMessage('면접 진행 중 오류가 발생했습니다: $e');
     }
   }
@@ -220,15 +346,18 @@ class InterviewController extends ChangeNotifier {
     }
 
     try {
+      print('📹 현재 비디오 녹화 중지 중...');
+
+      // 1단계: 즉시 녹화 중지
+      final videoPath = await _cameraService!.stopVideoRecording();
+      print('✅ 비디오 녹화 중지 완료: $videoPath');
+
+      // 2단계: 업로드 시작 표시
       _isUploadingVideo = true;
       notifyListeners();
 
-      print('📹 현재 비디오 녹화 중지 중...');
-      final videoPath = await _cameraService!.stopVideoRecording();
-
+      // 3단계: 녹화가 완전히 중지된 후 업로드 진행
       if (videoPath != null) {
-        print('✅ 비디오 녹화 중지 완료: $videoPath');
-
         // 비디오 파일을 바이트로 읽기
         final videoBytes = await _cameraService!.getRecordedVideoBytes();
 
@@ -276,41 +405,121 @@ class InterviewController extends ChangeNotifier {
   /// 면접 종료 (비디오+음성 함께 처리)
   Future<bool> endInterview() async {
     try {
-      print('면접을 종료하고 결과를 저장하고 있습니다...');
+      print('🛑 면접을 즉시 종료합니다...');
 
-      // 별도 오디오 중지 제거 (비디오에 음성이 포함되므로 불필요)
-      // 초보 개발자를 위한 설명: 비디오 녹화만 중지하면 음성도 함께 중지돼요!
+      // 1단계: 즉시 모든 녹화 중지
+      if (_cameraService != null && _cameraService!.isRecording) {
+        print('📹 녹화 즉시 중지 중...');
+        final videoPath = await _cameraService!.stopVideoRecording();
+        print('✅ 녹화 중지 완료: $videoPath');
+      }
 
-      print('면접 종료 완료!');
+      // 2단계: 면접 상태 즉시 종료 (추가 녹화 방지)
+      _isInterviewStarted = false;
+      _isInterviewerVideoPlaying = false;
+      _currentInterviewerVideoPath = '';
+
+      // 카운트다운 타이머 정리
+      _countdownTimer?.cancel();
+      _videoCompletionTimer?.cancel();
+      _isCountdownActive = false;
+      _countdownSeconds = 0;
+
+      notifyListeners(); // UI 즉시 업데이트
+
+      // 3단계: 마지막 비디오 업로드 (녹화가 완전히 중지된 후)
+      if (_cameraService != null) {
+        await _uploadLastRecordedVideo();
+      }
+
+      // 4단계: 카메라 리소스 완전히 해제
+      if (_cameraService != null) {
+        print('📷 카메라 리소스 해제 중...');
+        await _cameraService!.dispose();
+        print('✅ 카메라 리소스 해제 완료');
+      }
+
+      // 5단계: 리포트 생성 (모든 영상 업로드 완료 후)
+      if (_selectedResume != null && _videoUrls.isNotEmpty) {
+        print('📊 면접 리포트 생성 중...');
+        await _generateFinalReport();
+      }
+
+      print('✅ 면접 종료 완료!');
       return true;
     } catch (e) {
-      print('면접 종료 중 오류 발생: $e');
+      print('❌ 면접 종료 중 오류 발생: $e');
+      _setErrorMessage('면접 종료 중 오류가 발생했습니다: $e');
       return false;
+    }
+  }
+
+  /// 마지막 녹화된 비디오 업로드 (녹화 완전 중지 후 실행)
+  Future<void> _uploadLastRecordedVideo() async {
+    try {
+      _isUploadingVideo = true;
+      notifyListeners();
+
+      print('📤 마지막 녹화 영상 업로드 시작...');
+
+      // 비디오 파일을 바이트로 읽기
+      final videoBytes = await _cameraService!.getRecordedVideoBytes();
+
+      if (videoBytes != null) {
+        // 현재 로그인된 사용자 가져오기
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser != null) {
+          // Firebase Storage에 업로드
+          final interviewId = _generatedReportId ??
+              'interview_${DateTime.now().millisecondsSinceEpoch}';
+          final fileName =
+              'question_${_currentQuestionIndex + 1}_${DateTime.now().millisecondsSinceEpoch}.mp4';
+
+          print('🔥 Firebase Storage에 마지막 영상 업로드 중: $fileName');
+          final uploadedUrl = await _storageService.uploadInterviewVideo(
+            videoData: videoBytes,
+            userId: currentUser.uid,
+            interviewId: interviewId,
+            fileName: fileName,
+          );
+
+          if (uploadedUrl != null) {
+            _videoUrls.add(uploadedUrl);
+            print('✅ 마지막 비디오 업로드 성공: $uploadedUrl');
+            print('📊 총 업로드된 영상: ${_videoUrls.length}개');
+          } else {
+            print('❌ 마지막 비디오 업로드 실패');
+          }
+        } else {
+          print('❌ 로그인된 사용자가 없습니다.');
+        }
+      } else {
+        print('⚠️ 업로드할 비디오 파일이 없습니다.');
+      }
+    } catch (e) {
+      print('❌ 마지막 비디오 업로드 중 오류: $e');
+    } finally {
+      _isUploadingVideo = false;
+      notifyListeners();
     }
   }
 
   /// 면접 전체 중지 (실제 비디오 업로드 포함)
   Future<void> stopFullInterview() async {
     try {
-      print('🏁 면접을 종료하고 마지막 비디오+음성을 업로드하고 있습니다...');
+      print('🏁 면접을 완전히 종료합니다...');
 
-      // 마지막 녹화 중인 비디오 중지 및 업로드 (음성 포함)
-      await _stopAndUploadCurrentVideo();
+      // endInterview 메서드 재사용
+      final success = await endInterview();
 
-      // 별도 오디오 녹음 중지 제거 (비디오에 음성이 포함되므로 불필요)
-
-      // 리포트 생성
-      if (_selectedResume != null) {
-        await _generateFinalReport();
+      if (success) {
+        print('🏁 면접 전체 종료 완료');
+      } else {
+        print('❌ 면접 종료 중 일부 오류 발생');
       }
-
-      _isInterviewStarted = false;
-      print('🏁 면접 전체 중지 완료');
-
-      notifyListeners();
     } catch (e) {
-      print('면접 중지 중 오류: $e');
-      _setErrorMessage('면접 중지 중 오류가 발생했습니다: $e');
+      print('❌ 면접 종료 중 오류: $e');
+      _setErrorMessage('면접 종료 중 오류가 발생했습니다: $e');
     }
   }
 
@@ -350,6 +559,22 @@ class InterviewController extends ChangeNotifier {
     }
   }
 
+  /// 영상이 실제로 완료되었을 때 호출되는 메서드
+  void onInterviewerVideoCompleted() {
+    print('📺 면접관 영상 실제 완료 감지');
+
+    // 기존 타이머가 있으면 취소
+    _videoCompletionTimer?.cancel();
+
+    // 즉시 5초 카운트다운 시작 (재생 상태는 유지)
+    if (_isInterviewStarted) {
+      print('🎭 영상 완료, 재생 상태 유지하며 5초 카운트다운 시작');
+      // _isInterviewerVideoPlaying = false; // 재생 상태 유지 (변경하지 않음)
+      notifyListeners();
+      _startCountdown();
+    }
+  }
+
   // Private 메서드들
   void _setLoading(bool value) {
     _isLoading = value;
@@ -364,11 +589,25 @@ class InterviewController extends ChangeNotifier {
   /// 리소스 해제
   @override
   void dispose() {
+    // 타이머들 정리
+    _countdownTimer?.cancel();
+    _videoCompletionTimer?.cancel();
+
+    // 비동기 작업을 안전하게 처리
     if (_isInterviewStarted) {
-      endInterview();
+      // 면접 중이면 백그라운드에서 종료 처리
+      endInterview().then((_) {
+        print('🧹 dispose에서 면접 종료 완료');
+      }).catchError((error) {
+        print('❌ dispose에서 면접 종료 중 오류: $error');
+      });
     }
 
-    _cameraService?.dispose();
+    // 카메라 서비스 직접 해제 시도
+    _cameraService?.dispose().catchError((error) {
+      print('❌ dispose에서 카메라 해제 중 오류: $error');
+    });
+
     super.dispose();
   }
 

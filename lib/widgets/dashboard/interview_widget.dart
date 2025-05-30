@@ -139,19 +139,47 @@ class InterviewWidget extends StatelessWidget {
                         child: Image.asset(
                           imagePath,
                           fit: BoxFit.contain,
-                          height: double.infinity,
+                          height: imageHeight,
                           errorBuilder: (context, error, stackTrace) {
-                            // 이미지 로드 실패 시 아이콘 표시
-                            return Icon(
-                              Icons.videocam,
-                              size: isVeryShortScreen
-                                  ? 30
-                                  : (isShortScreen
-                                      ? 35
-                                      : (isVerySmallScreen
-                                          ? 40
-                                          : (isSmallScreen ? 50 : 64))),
-                              color: color.withOpacity(0.5),
+                            print('🚨 이미지 로드 오류 ($imagePath): $error');
+                            return Container(
+                              width: double.infinity,
+                              height: imageHeight,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    color.withOpacity(0.3),
+                                    color.withOpacity(0.1),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.videocam_outlined,
+                                    size: isVerySmallScreen
+                                        ? 30
+                                        : (isSmallScreen ? 50 : 60),
+                                    color: color,
+                                  ),
+                                  if (!isVerySmallScreen)
+                                    SizedBox(height: isSmallScreen ? 4 : 8),
+                                  if (!isVerySmallScreen)
+                                    Text(
+                                      '면접',
+                                      style: TextStyle(
+                                        color: color,
+                                        fontSize: isSmallScreen ? 11 : 13,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                ],
+                              ),
                             );
                           },
                         ),

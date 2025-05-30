@@ -116,37 +116,94 @@ class InterviewVideoPreview extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.videocam_off, size: 48, color: Colors.white70),
+            Icon(Icons.videocam_off, size: 48, color: Colors.red.shade300),
             const SizedBox(height: 16),
             const Text(
               '카메라를 사용할 수 없습니다',
               style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: Colors.white),
             ),
-            const SizedBox(height: 8),
-            const Text(
-              '웹 브라우저에서 카메라 권한을 허용해주세요',
-              style: TextStyle(fontSize: 14, color: Colors.white70),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.refresh),
-              label: const Text('카메라 다시 시도'),
-              onPressed: () {
-                // 카메라 재시도 로직
-                cameraService.initialize();
-              },
-            ),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: isInterviewStarted ? null : onStartInterview,
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.white,
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.symmetric(horizontal: 20),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade100.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade300),
               ),
-              child: const Text('카메라 없이 계속하기'),
+              child: const Column(
+                children: [
+                  Text(
+                    '🚫 카메라 권한이 필요합니다',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    '1. 브라우저 주소창 옆의 카메라 아이콘을 클릭\n2. 카메라 권한을 허용으로 변경\n3. 페이지 새로고침 또는 아래 버튼 클릭',
+                    style: TextStyle(fontSize: 12, color: Colors.white70),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: const Text('카메라 다시 시도'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.shade600,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                  ),
+                  onPressed: () async {
+                    print('🔄 카메라 재초기화 시도...');
+                    await cameraService.initialize();
+                  },
+                ),
+                const SizedBox(width: 12),
+                TextButton.icon(
+                  onPressed: isInterviewStarted ? null : onStartInterview,
+                  icon: const Icon(Icons.play_arrow, size: 18),
+                  label: const Text('카메라 없이 계속'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white70,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(8),
+              margin: const EdgeInsets.symmetric(horizontal: 40),
+              decoration: BoxDecoration(
+                color: Colors.red.shade900.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Text(
+                '⚠️ 카메라 없이 진행하면 영상이 녹화되지 않습니다',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.white60,
+                ),
+                textAlign: TextAlign.center,
+              ),
             ),
           ],
         ),

@@ -223,47 +223,61 @@ class ResumeWidget extends StatelessWidget {
                         width: double.infinity,
                         height: imageHeight,
                         alignment: Alignment.center,
-                        child: Image.asset(
-                          imagePath,
-                          fit: BoxFit.contain,
-                          height: imageHeight,
-                          errorBuilder: (context, error, stackTrace) {
-                            print('이미지 로드 오류: $error');
-                            return Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.broken_image,
-                                    size: isVeryShortScreen
-                                        ? 25
-                                        : (isShortScreen
-                                            ? 28
-                                            : (isVerySmallScreen
-                                                ? 30
-                                                : (isSmallScreen ? 40 : 50))),
-                                    color: Colors.grey,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Image.asset(
+                            imagePath,
+                            fit: BoxFit.contain,
+                            height: imageHeight,
+                            errorBuilder: (context, error, stackTrace) {
+                              print('🚨 이미지 로드 오류 ($imagePath): $error');
+                              return Container(
+                                width: double.infinity,
+                                height: imageHeight,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      color.withOpacity(0.3),
+                                      color.withOpacity(0.1),
+                                    ],
                                   ),
-                                  if (!(isVeryShortScreen ||
-                                      isVerySmallScreen)) // 매우 작은 화면에서는 텍스트 숨김
-                                    SizedBox(
-                                        height: isShortScreen
-                                            ? 2
-                                            : (isSmallScreen ? 4 : 8)),
-                                  if (!(isVeryShortScreen ||
-                                      isVerySmallScreen)) // 매우 작은 화면에서는 텍스트 숨김
-                                    Text(
-                                      '이미지를 불러올 수 없습니다',
-                                      style: TextStyle(
-                                        color: Colors.grey,
-                                        fontSize: isSmallScreen ? 10 : 12,
-                                      ),
-                                      textAlign: TextAlign.center,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.description_outlined,
+                                      size: isVeryShortScreen
+                                          ? 30
+                                          : (isShortScreen
+                                              ? 35
+                                              : (isVerySmallScreen
+                                                  ? 40
+                                                  : (isSmallScreen ? 50 : 60))),
+                                      color: color,
                                     ),
-                                ],
-                              ),
-                            );
-                          },
+                                    if (!(isVeryShortScreen ||
+                                        isVerySmallScreen))
+                                      SizedBox(height: isSmallScreen ? 4 : 8),
+                                    if (!(isVeryShortScreen ||
+                                        isVerySmallScreen))
+                                      Text(
+                                        '이력서',
+                                        style: TextStyle(
+                                          color: color,
+                                          fontSize: isSmallScreen ? 11 : 13,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
                         ),
                       ),
                     ),

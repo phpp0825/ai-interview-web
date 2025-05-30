@@ -15,8 +15,15 @@ class ReportListView extends StatelessWidget {
   }
 }
 
-class _ReportListViewContent extends StatelessWidget {
+class _ReportListViewContent extends StatefulWidget {
   const _ReportListViewContent({Key? key}) : super(key: key);
+
+  @override
+  State<_ReportListViewContent> createState() => _ReportListViewContentState();
+}
+
+class _ReportListViewContentState extends State<_ReportListViewContent> {
+  Set<String> _deletingReports = {}; // 삭제 중인 리포트 ID들
 
   @override
   Widget build(BuildContext context) {
@@ -264,24 +271,57 @@ class _ReportListViewContent extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       // 삭제 버튼
-                      OutlinedButton.icon(
-                        onPressed: () => _showDeleteConfirmDialog(
-                          context,
-                          controller,
-                          report['id'] as String,
-                          report['title'] as String,
-                        ),
-                        icon: const Icon(Icons.delete, size: 18),
-                        label: const Text('삭제'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.red,
-                          side: const BorderSide(color: Colors.red),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                        ),
-                      ),
+                      _deletingReports.contains(report['id'])
+                          ? Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade200,
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: Colors.grey),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    '삭제 중...',
+                                    style: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : OutlinedButton.icon(
+                              onPressed: () => _handleDelete(
+                                context,
+                                controller,
+                                report['id'] as String,
+                                report['title'] as String,
+                              ),
+                              icon: const Icon(Icons.delete, size: 18),
+                              label: const Text('삭제'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.red,
+                                side: const BorderSide(color: Colors.red),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                              ),
+                            ),
                       const SizedBox(width: 12),
                       // 보기 버튼
                       ElevatedButton.icon(
@@ -313,69 +353,6 @@ class _ReportListViewContent extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-
-  // 삭제 확인 다이얼로그
-  void _showDeleteConfirmDialog(
-    BuildContext context,
-    ReportController controller,
-    String reportId,
-    String reportTitle,
-  ) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('리포트 삭제'),
-        content: Text('정말 "$reportTitle" 리포트를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('취소'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-
-              // 삭제 중 로딩 다이얼로그
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (context) => const AlertDialog(
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 16),
-                      Text('삭제 중...'),
-                    ],
-                  ),
-                ),
-              );
-
-              final result = await controller.deleteReport(reportId);
-
-              if (context.mounted) {
-                Navigator.pop(context); // 로딩 다이얼로그 닫기
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      result ? '리포트가 삭제되었습니다.' : '리포트 삭제에 실패했습니다.',
-                    ),
-                    backgroundColor: result ? Colors.green : Colors.red,
-                  ),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('삭제'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -417,5 +394,89 @@ class _ReportListViewContent extends StatelessWidget {
     if (score >= 60) return Colors.blue;
     if (score >= 40) return Colors.orange;
     return Colors.red;
+  }
+
+  void _handleDelete(
+    BuildContext context,
+    ReportController controller,
+    String reportId,
+    String reportTitle,
+  ) {
+    // 확인 다이얼로그 표시
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('리포트 삭제'),
+        content: Text('정말 "$reportTitle" 리포트를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('취소'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context); // 확인 다이얼로그 닫기
+              _performDelete(context, controller, reportId);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _performDelete(
+    BuildContext context,
+    ReportController controller,
+    String reportId,
+  ) {
+    // 삭제 상태 시작
+    setState(() {
+      _deletingReports.add(reportId);
+    });
+
+    // 삭제 실행
+    controller.deleteReport(reportId).then((result) {
+      if (mounted) {
+        // 삭제 상태 해제
+        setState(() {
+          _deletingReports.remove(reportId);
+        });
+
+        // 결과 메시지 표시
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                result ? '✅ 리포트가 삭제되었습니다.' : '❌ 리포트 삭제에 실패했습니다.',
+              ),
+              backgroundColor: result ? Colors.green : Colors.red,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    }).catchError((error) {
+      if (mounted) {
+        // 오류 시에도 삭제 상태 해제
+        setState(() {
+          _deletingReports.remove(reportId);
+        });
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('❌ 삭제 중 오류가 발생했습니다.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    });
   }
 }

@@ -10,38 +10,84 @@ class MockReportDataService {
   /// [questions] - 면접 질문 목록
   /// [videoUrls] - 각 질문별 비디오 URL 목록
   ///
-  /// 반환값: QuestionAnswerModel 리스트
+  /// 반환값: QuestionAnswerModel 리스트 (실제 비디오가 있는 질문들만)
   static List<QuestionAnswerModel> generateMockQuestionAnswers(
     List<String> questions,
     List<String> videoUrls,
   ) {
+    // 백엔드 개발자용 실제 면접 질문들
+    final List<String> defaultQuestions = [
+      '자기소개를 해주시고, 본인의 주요 경험을 간단히 말씀해 주세요.',
+      '주로 사용하는 백엔드 기술 스택은 무엇이며, 그 기술을 선택한 이유는 무엇인가요?',
+      'REST API와 GraphQL의 차이점을 설명하고, 어떤 상황에서 각각을 사용하는지 말씀해 주세요.',
+      '데이터베이스 정규화와 비정규화에 대해 설명하고, 실무에서 어떻게 활용했는지 말씀해 주세요.',
+      '대용량 트래픽을 처리하기 위해 어떤 최적화 기법을 사용해 보셨나요?',
+      '마이크로서비스 아키텍처의 장단점에 대해 말씀해 주시고, 언제 사용하는 것이 좋다고 생각하시나요?',
+      '웹 애플리케이션의 보안을 위해 어떤 방법들을 적용해 보셨나요?',
+      '개발 중 가장 어려웠던 기술적 문제는 무엇이었고, 어떻게 해결하셨나요?',
+    ];
+
     // 백엔드 개발자용 목업 답변들
     final List<String> mockAnswers = [
-      '안녕하세요. 3년간 Spring Boot와 Node.js를 활용한 백엔드 개발 경험이 있습니다. 주로 RESTful API 설계와 마이크로서비스 아키텍처 구축을 담당했습니다.',
-      '주로 Java Spring Boot, Node.js, Python Django를 사용합니다. Spring Boot는 엔터프라이즈급 애플리케이션에 적합하고, Node.js는 실시간 서비스에 효율적이기 때문입니다.',
-      'REST API는 HTTP 프로토콜을 활용한 단순한 구조로 캐싱이 용이하고, GraphQL은 클라이언트가 필요한 데이터만 요청할 수 있어 효율적입니다. 프로젝트 요구사항에 따라 선택합니다.',
-      '정규화는 데이터 무결성을 보장하고 중복을 제거합니다. 비정규화는 조회 성능 향상을 위해 사용하며, 대용량 데이터나 복잡한 조인이 필요한 경우 적용합니다.',
-      '캐싱 전략(Redis), 데이터베이스 인덱싱, 비동기 처리, 로드 밸런싱을 통해 성능을 최적화했습니다. 특히 Redis를 활용한 세션 관리로 응답 시간을 50% 단축시켰습니다.',
-      '마이크로서비스는 독립적인 배포와 확장이 가능하지만, 서비스 간 통신 복잡성과 데이터 일관성 관리가 어렵습니다. 팀 규모와 시스템 복잡도를 고려해야 합니다.',
-      'JWT 토큰 인증, SQL Injection 방지, CORS 설정, HTTPS 적용, 입력값 검증을 통해 보안을 강화합니다. 정기적인 보안 감사도 실시합니다.',
-      '대용량 파일 업로드 처리 중 메모리 부족 문제가 발생했습니다. 스트리밍 방식으로 변경하고 청크 단위 처리를 구현하여 해결했습니다.',
+      '안녕하세요. 3년간 Spring Boot와 Node.js를 활용한 백엔드 개발 경험이 있습니다. 주로 RESTful API 설계와 마이크로서비스 아키텍처 구축을 담당했고, 대용량 사용자를 위한 서비스 최적화 작업을 해왔습니다.',
+      '주로 Java Spring Boot, Node.js, Python Django를 사용합니다. Spring Boot는 엔터프라이즈급 애플리케이션에 적합하고 안정성이 뛰어나며, Node.js는 실시간 서비스와 API 게이트웨이에 효율적이기 때문입니다.',
+      'REST API는 HTTP 프로토콜 기반의 단순한 구조로 캐싱이 용이하고 확장성이 좋습니다. GraphQL은 클라이언트가 필요한 데이터만 요청할 수 있어 네트워크 효율성이 높습니다. 복잡한 데이터 관계가 있는 경우 GraphQL을, 단순한 CRUD는 REST를 선택합니다.',
+      '정규화는 데이터 무결성을 보장하고 중복을 제거하여 저장 공간을 절약합니다. 비정규화는 조회 성능 향상을 위해 사용하며, 대용량 데이터 분석이나 복잡한 조인이 자주 발생하는 테이블에 적용했습니다.',
+      '여러 최적화 기법을 적용했습니다. Redis를 활용한 캐싱 전략, 데이터베이스 인덱싱 최적화, 비동기 처리를 통한 응답 시간 단축, 로드 밸런싱을 통한 서버 분산 처리를 구현했습니다. 특히 Redis 세션 캐싱으로 응답 시간을 50% 단축시켰습니다.',
+      '마이크로서비스는 독립적인 배포와 확장이 가능하고 기술 스택을 다양화할 수 있습니다. 하지만 서비스 간 통신 복잡성과 데이터 일관성 관리가 어렵습니다. 팀 규모가 크고 시스템이 복잡할 때 사용하는 것이 좋다고 생각합니다.',
+      'JWT 토큰 기반 인증, SQL Injection 방지를 위한 Prepared Statement, CORS 설정, HTTPS 적용, 입력값 검증 및 sanitization을 구현했습니다. 또한 정기적인 의존성 보안 감사와 로그 모니터링도 실시했습니다.',
+      '대용량 파일 업로드 처리 중 메모리 부족과 타임아웃 문제가 발생했습니다. 스트리밍 방식으로 변경하고 청크 단위 처리를 구현하여 메모리 사용량을 최적화했으며, 비동기 처리로 업로드 시간을 단축시켰습니다.',
     ];
+
+    // 현실적인 답변 시간 (30초~90초)
+    final List<int> answerDurations = [55, 48, 72, 65, 84, 76, 58, 88];
 
     final List<QuestionAnswerModel> questionAnswers = [];
 
-    for (int i = 0; i < questions.length; i++) {
-      final videoUrl = i < videoUrls.length ? videoUrls[i] : '';
+    // 실제 질문이 있으면 사용하고, 없으면 기본 질문 사용
+    final List<String> finalQuestions =
+        questions.isNotEmpty ? questions : defaultQuestions;
+
+    // 비디오 URL이 없으면 빈 리스트 반환
+    if (videoUrls.isEmpty) {
+      print('📭 녹화된 영상이 없어서 질문-답변 데이터를 생성하지 않습니다.');
+      return [];
+    }
+
+    print('🎬 실제 녹화된 영상 기반으로 질문-답변 데이터 생성 - 영상 개수: ${videoUrls.length}개');
+
+    // 실제 비디오 URL 개수만큼만 질문-답변 모델 생성
+    for (int i = 0; i < videoUrls.length && i < finalQuestions.length; i++) {
+      final videoUrl = videoUrls[i];
+
+      // 비어있는 URL은 스킵
+      if (videoUrl.isEmpty) {
+        print('⚠️ 질문 ${i + 1}: 비어있는 비디오 URL, 스킵');
+        continue;
+      }
+
+      print(
+          '🎬 질문 ${i + 1}: 실제 Firebase Storage 비디오 사용 - ${videoUrl.substring(0, videoUrl.length > 50 ? 50 : videoUrl.length)}...');
+
       final answer = i < mockAnswers.length ? mockAnswers[i] : '답변 데이터가 없습니다.';
+      final duration = i < answerDurations.length ? answerDurations[i] : 60;
+
+      // 점수를 더 현실적으로 분배 (70~95점)
+      final baseScore = 78;
+      final variation = [2, -3, 8, 1, 6, -2, 0, 12];
+      final score = baseScore + (i < variation.length ? variation[i] : 0);
 
       questionAnswers.add(QuestionAnswerModel(
-        question: questions[i],
+        question: finalQuestions[i],
         answer: answer,
         videoUrl: videoUrl,
-        score: 75 + (i * 3) % 20, // 75~94점 범위의 다양한 점수
-        evaluation: getEvaluationForScore(75 + (i * 3) % 20),
-        answerDuration: 45 + (i * 5) % 25, // 45~69초 범위의 답변 시간
+        score: score.clamp(70, 95),
+        evaluation: getEvaluationForScore(score),
+        answerDuration: duration,
       ));
     }
+
+    print('✅ 총 ${questionAnswers.length}개 질문 카드 생성 완료 (실제 녹화된 영상만)');
 
     return questionAnswers;
   }
