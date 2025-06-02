@@ -28,7 +28,8 @@ class _InterviewViewState extends State<InterviewView> {
 
   /// 면접 초기화
   Future<void> _initializeInterview() async {
-    await _controller.initializeServices();
+    // 컨트롤러 초기화 완료까지 대기
+    await _waitForControllerReady();
 
     // 전달받은 이력서 ID가 있는 경우, 해당 이력서 선택
     if (widget.selectedResumeId != null && mounted) {
@@ -50,6 +51,14 @@ class _InterviewViewState extends State<InterviewView> {
     }
   }
 
+  /// 컨트롤러 준비 완료까지 대기
+  Future<void> _waitForControllerReady() async {
+    // 컨트롤러가 로딩 중이면 완료까지 대기
+    while (_controller.isLoading) {
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+  }
+
   /// 이력서 선택 다이얼로그 표시
   void _showResumeSelectionDialog() {
     InterviewDialogs.showResumeSelectionDialog(
@@ -63,7 +72,10 @@ class _InterviewViewState extends State<InterviewView> {
         }
       },
       onCreateResume: () {
-        _controller.loadResumeList();
+        // 이력서 목록 새로고침 - 컨트롤러 재생성으로 처리
+        setState(() {
+          _controller = InterviewController();
+        });
       },
     );
   }
@@ -75,7 +87,7 @@ class _InterviewViewState extends State<InterviewView> {
       return;
     }
 
-    // 면접 시작 (서버 연결 체크 제거)
+    // 면접 시작
     final success = await _controller.startInterview();
     if (success && mounted) {
       InterviewDialogs.showSnackBar(
@@ -87,7 +99,7 @@ class _InterviewViewState extends State<InterviewView> {
 
   /// 면접 종료 처리
   Future<void> _handleStopInterview() async {
-    // 로딩 표시 (선택사항)
+    // 로딩 표시
     if (mounted) {
       InterviewDialogs.showSnackBar(
         context: context,
@@ -99,7 +111,7 @@ class _InterviewViewState extends State<InterviewView> {
     await _controller.stopFullInterview();
 
     if (mounted) {
-      // 간단한 완료 메시지만 표시
+      // 완료 메시지 표시
       InterviewDialogs.showSnackBar(
         context: context,
         message: '✅ 면접이 완료되었습니다!',
@@ -109,7 +121,7 @@ class _InterviewViewState extends State<InterviewView> {
       await Future.delayed(const Duration(milliseconds: 1500));
 
       if (mounted) {
-        // 홈 화면으로 즉시 이동 (모든 이전 화면 제거)
+        // 홈 화면으로 즉시 이동
         Navigator.of(context).pushNamedAndRemoveUntil(
           '/',
           (Route<dynamic> route) => false,
@@ -229,7 +241,6 @@ class _InterviewViewState extends State<InterviewView> {
 
   /// 면접 본문 (상태에 따라 다른 화면 표시)
   Widget _buildInterviewBody(InterviewController controller) {
-    // 기본 면접 화면
     return Column(
       children: [
         // 비디오 영역
@@ -249,11 +260,11 @@ class _InterviewViewState extends State<InterviewView> {
                     : const Center(child: Text('카메라를 초기화하는 중...')),
               ),
 
-              // 오른쪽: 서버 응답 영상 (서버 연결 상태 제거)
+              // 오른쪽: 서버 응답 영상
               Expanded(
                 flex: 1,
                 child: InterviewServerVideoView(
-                  serverResponseImage: controller.serverResponseImage,
+                  serverResponseImage: null, // 서버 응답 이미지 제거
                   isConnected: true, // 항상 연결된 것으로 표시
                   isInterviewStarted: controller.isInterviewStarted,
                   videoPath: controller.currentInterviewerVideoPath,
@@ -267,7 +278,7 @@ class _InterviewViewState extends State<InterviewView> {
           ),
         ),
 
-        // 하단 컨트롤 바 (서버 연결 관련 제거)
+        // 하단 컨트롤 바
         InterviewControlBar(
           isInterviewStarted: controller.isInterviewStarted,
           isUploadingVideo: controller.isUploadingVideo,
