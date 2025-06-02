@@ -5,6 +5,7 @@ import '../widgets/interview/interview_video_preview.dart';
 import '../widgets/interview/interview_server_video_view.dart';
 import '../widgets/interview/interview_control_bar.dart';
 import '../widgets/interview/interview_dialogs.dart';
+import 'resume_list_view.dart';
 
 class InterviewView extends StatefulWidget {
   final String? selectedResumeId;
@@ -42,11 +43,11 @@ class _InterviewViewState extends State<InterviewView> {
       return;
     }
 
-    // 이력서 선택 다이얼로그를 항상 표시
+    // 이력서 선택 화면을 항상 표시
     if (!_resumeDialogShown && mounted) {
       _resumeDialogShown = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _showResumeSelectionDialog();
+        _showResumeSelection();
       });
     }
   }
@@ -59,31 +60,34 @@ class _InterviewViewState extends State<InterviewView> {
     }
   }
 
-  /// 이력서 선택 다이얼로그 표시
-  void _showResumeSelectionDialog() {
-    InterviewDialogs.showResumeSelectionDialog(
-      context: context,
-      resumeList: _controller.resumeList,
-      onResumeSelected: (String resumeId) async {
-        final success = await _controller.selectResume(resumeId);
-        if (success && mounted) {
-          InterviewDialogs.showSnackBar(
-              context: context, message: '이력서가 선택되었습니다');
-        }
-      },
-      onCreateResume: () {
-        // 이력서 목록 새로고침 - 컨트롤러 재생성으로 처리
-        setState(() {
-          _controller = InterviewController();
-        });
-      },
+  /// 이력서 선택 화면 표시
+  void _showResumeSelection() {
+    // 새로운 이력서 목록 화면으로 이동
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ResumeListView(
+          onResumeSelected: (resume) async {
+            final success = await _controller.selectResume(resume.resume_id);
+            if (success && mounted) {
+              // 이력서 선택 완료 후 면접 화면으로 돌아가기
+              Navigator.pop(context);
+
+              InterviewDialogs.showSnackBar(
+                context: context,
+                message: '이력서가 선택되었습니다: ${resume.position}',
+              );
+            }
+          },
+        ),
+      ),
     );
   }
 
   /// 면접 시작 처리
   Future<void> _handleStartInterview() async {
     if (_controller.selectedResume == null) {
-      _showResumeSelectionDialog();
+      _showResumeSelection();
       return;
     }
 
@@ -230,7 +234,7 @@ class _InterviewViewState extends State<InterviewView> {
         actions: [
           IconButton(
             icon: const Icon(Icons.description),
-            onPressed: _showResumeSelectionDialog,
+            onPressed: _showResumeSelection,
             tooltip: '이력서 선택',
           ),
         ],

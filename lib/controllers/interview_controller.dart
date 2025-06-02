@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/common/video_recording_service.dart';
 import '../services/common/firebase_storage_service.dart';
 import '../services/resume/interfaces/resume_service_interface.dart';
+import '../services/interview/interview_submission_service.dart';
 import '../repositories/report/firebase_report_repository.dart';
 import '../models/resume_model.dart';
 import 'package:get_it/get_it.dart';
@@ -17,6 +18,7 @@ class InterviewController extends ChangeNotifier {
   IResumeService? _resumeService;
   final _reportRepository = FirebaseReportRepository();
   final _storageService = FirebaseStorageService();
+  final _submissionService = InterviewSubmissionService();
 
   // === 기본 상태 ===
   bool _isLoading = true;
@@ -312,6 +314,9 @@ class InterviewController extends ChangeNotifier {
     _isInterviewStarted = false;
     _resetVideoState();
     await _generateReport();
+
+    // 서버로 면접 결과 전송 (새로 추가)
+    // await _submitToServer();
   }
 
   // === 면접 강제 종료 (사용자가 중간에 종료) ===
@@ -328,6 +333,9 @@ class InterviewController extends ChangeNotifier {
       // 리포트 생성 (영상이 있으면)
       if (_selectedResume != null && _videoUrls.isNotEmpty) {
         await _generateReport();
+
+        // 서버로 면접 결과 전송 (새로 추가)
+        // await _submitToServer();
       }
 
       notifyListeners();

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'resume_selection_dialog.dart';
+import '../../views/resume_list_view.dart';
+import '../../views/interview_view.dart';
 
 /// 대시보드의 면접 시작 위젯
 /// 사용자가 면접을 시작할 수 있는 카드 형태의 위젯입니다.
@@ -25,8 +26,24 @@ class InterviewWidget extends StatelessWidget {
 
   /// 면접 카드 탭 처리
   void _onInterviewCardTap(BuildContext context) {
-    // 이력서 선택 다이얼로그 표시
-    ResumeSelectionDialog.show(context, color: color);
+    // 새로운 이력서 목록 화면으로 이동
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ResumeListView(
+          onResumeSelected: (resume) {
+            // 이력서가 선택되면 면접 화면으로 이동
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    InterviewView(selectedResumeId: resume.resume_id),
+              ),
+            );
+          },
+        ),
+      ),
+    );
   }
 
   /// 카드 위젯 생성
