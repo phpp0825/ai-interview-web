@@ -1,0 +1,45 @@
+# FastAPI web framework
+fastapi==0.104.1
+uvicorn==0.24.0
+
+# Video processing
+moviepy==1.0.3
+
+# Text-to-Speech
+gtts==2.5.1
+
+# HTTP requests
+requests==2.31.0
+
+# Basic libraries
+python-multipart==0.0.6
+
+# Audio processing
+pydub==0.25.1
+
+# Ollama and LangChain (Local LLM - No API key required)
+langchain-ollama>=0.1.0
+langchain>=0.2.0
+
+# Speech-to-Text (Local processing - No API key required)
+faster-whisper==0.10.0
+
+# Computer vision (Pose analysis)
+opencv-python==4.8.1.78
+mediapipe==0.10.8
+numpy==1.24.3
+
+# Other utilities
+Pillow==10.1.0
+rich==13.7.0
+
+# PDF 처리
+PyPDF2==3.0.1
+
+# === 실시간 음성 녹음용 (현재 사용 안함) ===
+# noisereduce==3.0.0
+# SpeechRecognition==3.10.0
+# webrtcvad==2.0.10
+# pyaudio==0.2.14  
+
+coloredlogs==15.0.1 

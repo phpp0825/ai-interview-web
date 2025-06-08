@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../views/report_list_view.dart';
 import '../../core/di/service_locator.dart';
-import '../../services/report/interfaces/report_service_interface.dart';
+import '../../repositories/report/report_repository_interface.dart';
 
 /// 면접 보고서 위젯
 ///
@@ -48,11 +48,11 @@ class _ReportWidgetState extends State<ReportWidget> {
         _isLoading = true;
       });
 
-      // 필요한 서비스 가져오기
-      final reportService = serviceLocator<IReportService>();
+      // 필요한 리포지토리 가져오기
+      final reportRepository = serviceLocator<IReportRepository>();
 
       // 보고서 목록 가져오기
-      final reportList = await reportService.getCurrentUserReportList();
+      final reportList = await reportRepository.getCurrentUserReportSummaries();
 
       // 로딩 상태 종료
       if (mounted) {

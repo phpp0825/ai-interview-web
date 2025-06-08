@@ -10,7 +10,7 @@
 .history
 .svn/
 .swiftpm/
-migrate_working_dir/
+migrate_working_dir/1
 
 # IntelliJ related
 *.iml
@@ -43,3 +43,144 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# ===============================
+# 서버 파일 및 Python 관련 추가
+# ===============================
+
+# Python 가상환경
+lib/server/venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Python 관련 파일
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# 서버 업로드 및 임시 파일
+lib/server/uploads/
+lib/server/tmp/
+lib/server/logs/
+uploads/
+tmp/
+logs/
+*.tmp
+*.temp
+
+# 데이터베이스 파일
+*.db
+*.sqlite
+*.sqlite3
+database.db
+db.sqlite3
+
+# 환경 변수 파일
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# Firebase 관련 (민감한 정보)
+google-services.json
+GoogleService-Info.plist
+firebase-adminsdk-*.json
+serviceAccountKey.json
+
+# API 키 및 설정 파일
+config.json
+secrets.json
+api_keys.json
+credentials.json
+
+# 로그 파일
+*.log
+logs/
+*.out
+nohup.out
+
+# OS 관련 파일
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# 에디터 관련
+.vscode/settings.json
+.vscode/launch.json
+.vscode/extensions.json
+*~
+.swp
+.swo
+
+# 임시 및 백업 파일
+*.bak
+*.backup
+*.orig
+*.rej
+
+# 압축 파일
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Flutter Web 관련
+/web/build/
+
+# iOS 관련 추가
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/.last_build_id
+ios/Runner/GeneratedPluginRegistrant.*
+
+# Android 관련 추가
+android/.gradle/
+android/app/src/main/java/**/R.java
+android/app/src/main/java/**/Manifest.java
+android/local.properties
+android/key.properties
+
+# 테스트 커버리지
+coverage/
+*.lcov
+
+# 비디오 및 미디어 파일 (용량이 큰 경우)
+*.mp4
+*.avi
+*.mov
+*.wmv
+*.flv
+*.mkv
+*.webm
+# 단, assets 폴더의 작은 미디어 파일은 제외
+!assets/**/*.mp4
+!assets/**/*.mov
+!assets/**/*.webm

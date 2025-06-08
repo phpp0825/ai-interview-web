@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 class InterviewControlBar extends StatelessWidget {
   final bool isInterviewStarted;
   final bool isUploadingVideo;
+  final bool isAnalyzingVideo; // AI 분석 상태 추가
   final bool hasSelectedResume;
   final VoidCallback onStartInterview;
   final VoidCallback onStopInterview;
@@ -13,6 +14,7 @@ class InterviewControlBar extends StatelessWidget {
     Key? key,
     required this.isInterviewStarted,
     this.isUploadingVideo = false,
+    this.isAnalyzingVideo = false, // 기본값 false
     required this.hasSelectedResume,
     required this.onStartInterview,
     required this.onStopInterview,
@@ -47,10 +49,32 @@ class InterviewControlBar extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Text(
-            '🤖 AI가 면접 데이터를 분석하고 클라우드에 저장하고 있습니다...',
+            '📤 영상을 클라우드에 업로드하고 있습니다...',
             style: TextStyle(
               fontSize: 14,
               color: Colors.blue.shade700,
+            ),
+          ),
+        ],
+      );
+    }
+
+    // AI 분석 중일 때는 동일한 디자인으로 분석 상태 표시
+    if (isAnalyzingVideo) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            '🤖 AI 분석이 시작되었습니다! 면접 결과를 분석하고 있습니다...',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.green.shade700,
             ),
           ),
         ],

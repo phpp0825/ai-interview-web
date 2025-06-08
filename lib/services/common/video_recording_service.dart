@@ -304,46 +304,11 @@ class VideoRecordingService {
     print('   - 웹 환경: $_isWeb');
     print('   - 비디오 경로: $_videoPath');
 
-    // 더미 카메라 모드인 경우 빈 바이트 배열 반환
+    // 더미 카메라 모드인 경우 null 반환 (영상 없음)
     if (_isUsingDummyCamera) {
-      print('❌ 더미 카메라 모드: 빈 비디오 데이터 반환');
-      // 매우 작은 MP4 헤더만 포함된 더미 데이터 (실제로는 재생 불가능)
-      final dummyData = Uint8List.fromList([
-        0x00,
-        0x00,
-        0x00,
-        0x20,
-        0x66,
-        0x74,
-        0x79,
-        0x70,
-        0x69,
-        0x73,
-        0x6F,
-        0x6D,
-        0x00,
-        0x00,
-        0x02,
-        0x00,
-        0x69,
-        0x73,
-        0x6F,
-        0x6D,
-        0x69,
-        0x73,
-        0x6F,
-        0x32,
-        0x61,
-        0x76,
-        0x63,
-        0x31,
-        0x6D,
-        0x70,
-        0x34,
-        0x31,
-      ]);
-      print('   -> 더미 데이터 크기: ${dummyData.length} bytes');
-      return dummyData;
+      print('❌ 더미 카메라 모드: 영상 녹화 불가능 - null 반환');
+      print('   -> 실제 카메라 권한을 허용하고 다시 시도해주세요.');
+      return null;
     }
 
     try {

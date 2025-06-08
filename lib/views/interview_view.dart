@@ -34,12 +34,8 @@ class _InterviewViewState extends State<InterviewView> {
 
     // 전달받은 이력서 ID가 있는 경우, 해당 이력서 선택
     if (widget.selectedResumeId != null && mounted) {
-      final success = await _controller.selectResume(widget.selectedResumeId!);
-      if (success) {
-        _resumeDialogShown = true;
-        InterviewDialogs.showSnackBar(
-            context: context, message: '이력서가 선택되었습니다');
-      }
+      await _controller.selectResume(widget.selectedResumeId!);
+      _resumeDialogShown = true;
       return;
     }
 
@@ -68,15 +64,10 @@ class _InterviewViewState extends State<InterviewView> {
       MaterialPageRoute(
         builder: (context) => ResumeListView(
           onResumeSelected: (resume) async {
-            final success = await _controller.selectResume(resume.resume_id);
-            if (success && mounted) {
+            await _controller.selectResume(resume.resume_id);
+            if (mounted) {
               // 이력서 선택 완료 후 면접 화면으로 돌아가기
               Navigator.pop(context);
-
-              InterviewDialogs.showSnackBar(
-                context: context,
-                message: '이력서가 선택되었습니다: ${resume.position}',
-              );
             }
           },
         ),
@@ -91,66 +82,30 @@ class _InterviewViewState extends State<InterviewView> {
       return;
     }
 
-    // 면접 시작
-    final success = await _controller.startInterview();
-    if (success && mounted) {
-      InterviewDialogs.showSnackBar(
-        context: context,
-        message: '🎬 면접이 시작되었습니다! 면접관 영상을 확인하세요.',
-      );
-    }
+    // 면접 시작 (알림 제거)
+    await _controller.startInterview();
   }
 
   /// 면접 종료 처리
   Future<void> _handleStopInterview() async {
-    // 로딩 표시
-    if (mounted) {
-      InterviewDialogs.showSnackBar(
-        context: context,
-        message: '🎬 면접을 종료하고 있습니다...',
-      );
-    }
-
-    // 면접 종료 처리
+    // 면접 종료 처리 (알림 제거)
     await _controller.stopFullInterview();
 
     if (mounted) {
-      // 완료 메시지 표시
-      InterviewDialogs.showSnackBar(
-        context: context,
-        message: '✅ 면접이 완료되었습니다!',
+      // 바로 홈 화면으로 이동 (대기 시간 제거)
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        '/',
+        (Route<dynamic> route) => false,
       );
-
-      // 잠시 대기 후 홈 화면으로 이동
-      await Future.delayed(const Duration(milliseconds: 1500));
-
-      if (mounted) {
-        // 홈 화면으로 즉시 이동
-        Navigator.of(context).pushNamedAndRemoveUntil(
-          '/',
-          (Route<dynamic> route) => false,
-        );
-      }
     }
   }
 
   /// 다음 영상으로 이동 처리
   Future<void> _handleNextVideo() async {
     try {
-      // 업로드 시작 알림
-      if (mounted) {
-        InterviewDialogs.showSnackBar(
-            context: context, message: '📤 답변 영상을 업로드하고 있습니다...');
-      }
-
       await _controller.moveToNextVideo();
-
-      // 업로드 완료 및 다음 질문 이동 알림
-      if (mounted) {
-        InterviewDialogs.showSnackBar(
-            context: context, message: '✅ 업로드 완료! 다음 질문이 시작됩니다.');
-      }
     } catch (e) {
+      // 오류 발생 시에만 알림 표시
       if (mounted) {
         InterviewDialogs.showSnackBar(
             context: context, message: '❌ 질문 이동 중 오류가 발생했습니다: $e');
@@ -243,42 +198,31 @@ class _InterviewViewState extends State<InterviewView> {
     );
   }
 
-  /// 면접 본문 (상태에 따라 다른 화면 표시)
+  /// 면접 본문 (면접관 영상만 표시)
   Widget _buildInterviewBody(InterviewController controller) {
     return Column(
       children: [
-        // 비디오 영역
+        // === 면접관 영상 영역 (전체 화면) ===
         Expanded(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // 왼쪽: 웹캠 비디오
-              Expanded(
-                flex: 1,
-                child: controller.cameraService != null
-                    ? InterviewVideoPreview(
-                        cameraService: controller.cameraService!,
-                        isInterviewStarted: controller.isInterviewStarted,
-                        onStartInterview: _handleStartInterview,
-                      )
-                    : const Center(child: Text('카메라를 초기화하는 중...')),
+          child: Container(
+            margin: const EdgeInsets.all(16.0),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(8.0),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8.0),
+              child: InterviewServerVideoView(
+                serverResponseImage: null,
+                isConnected: true,
+                isInterviewStarted: controller.isInterviewStarted,
+                videoPath: controller.currentInterviewerVideoPath,
+                isVideoPlaying: controller.isInterviewerVideoPlaying,
+                isCountdownActive: controller.isCountdownActive,
+                countdownSeconds: controller.countdownSeconds,
+                onVideoCompleted: controller.onInterviewerVideoCompleted,
               ),
-
-              // 오른쪽: 서버 응답 영상
-              Expanded(
-                flex: 1,
-                child: InterviewServerVideoView(
-                  serverResponseImage: null, // 서버 응답 이미지 제거
-                  isConnected: true, // 항상 연결된 것으로 표시
-                  isInterviewStarted: controller.isInterviewStarted,
-                  videoPath: controller.currentInterviewerVideoPath,
-                  isVideoPlaying: controller.isInterviewerVideoPlaying,
-                  isCountdownActive: controller.isCountdownActive,
-                  countdownSeconds: controller.countdownSeconds,
-                  onVideoCompleted: controller.onInterviewerVideoCompleted,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
 
@@ -286,6 +230,7 @@ class _InterviewViewState extends State<InterviewView> {
         InterviewControlBar(
           isInterviewStarted: controller.isInterviewStarted,
           isUploadingVideo: controller.isUploadingVideo,
+          isAnalyzingVideo: controller.isAnalyzingVideo,
           hasSelectedResume: controller.selectedResume != null,
           onStartInterview: _handleStartInterview,
           onStopInterview: _handleStopInterview,

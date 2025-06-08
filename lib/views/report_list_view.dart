@@ -361,14 +361,12 @@ class _ReportListViewContentState extends State<_ReportListViewContent> {
     switch (status) {
       case 'completed':
         return Colors.green;
-      case 'processing':
-        return Colors.blue;
       case 'pending':
         return Colors.orange;
       case 'failed':
         return Colors.red;
       default:
-        return Colors.grey;
+        return Colors.green; // 기본적으로 완료 상태로 처리
     }
   }
 
@@ -377,14 +375,12 @@ class _ReportListViewContentState extends State<_ReportListViewContent> {
     switch (status) {
       case 'completed':
         return '완료';
-      case 'processing':
-        return '처리 중';
       case 'pending':
         return '대기 중';
       case 'failed':
         return '실패';
       default:
-        return '알 수 없음';
+        return '완료'; // 기본적으로 완료 상태로 처리
     }
   }
 
@@ -405,9 +401,62 @@ class _ReportListViewContentState extends State<_ReportListViewContent> {
     // 확인 다이얼로그 표시
     showDialog(
       context: context,
+      barrierDismissible: false, // 외부 터치로 닫기 방지
       builder: (context) => AlertDialog(
-        title: const Text('리포트 삭제'),
-        content: Text('정말 "$reportTitle" 리포트를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.'),
+        title: Row(
+          children: [
+            Icon(Icons.warning, color: Colors.red.shade600),
+            const SizedBox(width: 8),
+            const Text('리포트 삭제'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('정말 "$reportTitle" 리포트를 삭제하시겠습니까?'),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                border: Border.all(color: Colors.red.shade200),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.info_outline,
+                          size: 16, color: Colors.red.shade700),
+                      const SizedBox(width: 4),
+                      Text(
+                        '삭제되는 데이터:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text('• 리포트 분석 결과'),
+                  const Text('• 면접 영상 파일'),
+                  const Text('• AI 피드백 데이터'),
+                  const SizedBox(height: 8),
+                  Text(
+                    '⚠️ 이 작업은 되돌릴 수 없습니다.',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red.shade800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -422,7 +471,7 @@ class _ReportListViewContentState extends State<_ReportListViewContent> {
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
             ),
-            child: const Text('삭제'),
+            child: const Text('영구 삭제'),
           ),
         ],
       ),
@@ -452,10 +501,19 @@ class _ReportListViewContentState extends State<_ReportListViewContent> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                result ? '✅ 리포트가 삭제되었습니다.' : '❌ 리포트 삭제에 실패했습니다.',
+                result ? '✅ 리포트와 관련 영상 파일이 모두 삭제되었습니다.' : '❌ 리포트 삭제에 실패했습니다.',
               ),
               backgroundColor: result ? Colors.green : Colors.red,
-              duration: const Duration(seconds: 2),
+              duration: const Duration(seconds: 3),
+              action: result
+                  ? null
+                  : SnackBarAction(
+                      label: '다시 시도',
+                      textColor: Colors.white,
+                      onPressed: () {
+                        _performDelete(context, controller, reportId);
+                      },
+                    ),
             ),
           );
         }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/report_model.dart';
-import '../services/report/interfaces/report_service_interface.dart';
+import '../repositories/report/report_repository_interface.dart';
 import '../core/di/service_locator.dart';
 import 'package:video_player/video_player.dart';
 
@@ -9,7 +9,7 @@ import 'package:video_player/video_player.dart';
 /// 리포트 목록과 기본 데이터만 관리합니다.
 class ReportController extends ChangeNotifier {
   // 의존성
-  final IReportService _reportService;
+  final IReportRepository _reportRepository;
 
   // 상태 변수
   ReportModel? _reportData;
@@ -35,14 +35,37 @@ class ReportController extends ChangeNotifier {
   int get selectedQuestionIndex => _selectedQuestionIndex;
   String get currentVideoUrl => _currentVideoUrl;
 
-  // 비디오 관련 getter들 (목업)
-  dynamic seekToTime(int time) {
-    if (_isVideoInitialized && _videoPlayerController != null) {
-      _videoPlayerController!.seekTo(Duration(seconds: time));
-      print('비디오를 ${time}초로 이동했습니다');
-    } else {
-      print('비디오 컨트롤러가 초기화되지 않아 ${time}초로 이동할 수 없습니다');
+  /// 영상 시간 이동 - 차트나 타임라인에서 호출됨 (Duration 기반)
+  /// 영상 시간 이동 - 차트나 타임라인에서 호출됨 (Duration 기반)
+  /// 현재 비디오 duration 문제로 인해 기능 제한됨
+  Future<void> seekToTime(Duration duration) async {
+    try {
+      print('🎯 시간 이동 요청: ${duration.inSeconds}초');
+
+      // Duration 유효성 검사
+      if (duration.isNegative) {
+        print('⚠️ 음수 duration 감지: $duration - HTML5 플레이어에서 처리');
+        return;
+      }
+
+      // 1시간을 초과하는 경우 거부
+      if (duration.inSeconds > 3600) {
+        print('⚠️ 과도하게 긴 duration: ${duration.inSeconds}초');
+        return;
+      }
+
+      // HTML5 비디오 플레이어로 시간 이동 로그만 출력
+      // 실제 구현은 각 HTML5VideoPlayer에서 처리됨
+      print('✅ HTML5 비디오 플레이어로 시간 이동: ${duration.inSeconds}초');
+    } catch (e, stackTrace) {
+      print('❌ 시간 이동 실패: $e');
+      print('스택 트레이스: $stackTrace');
     }
+  }
+
+  /// 영상 시간 이동 - 초 단위 (기존 호환성)
+  Future<void> seekToTimeInSeconds(int seconds) async {
+    await seekToTime(Duration(seconds: seconds));
   }
 
   dynamic formatDuration(int seconds) {
@@ -54,7 +77,7 @@ class ReportController extends ChangeNotifier {
   }
 
   /// 생성자
-  ReportController() : _reportService = serviceLocator<IReportService>() {
+  ReportController() : _reportRepository = serviceLocator<IReportRepository>() {
     loadReportList();
   }
 
@@ -65,7 +88,7 @@ class ReportController extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      _reportList = await _reportService.getCurrentUserReportList();
+      _reportList = await _reportRepository.getCurrentUserReportSummaries();
 
       _isLoadingReports = false;
       notifyListeners();
@@ -82,16 +105,12 @@ class ReportController extends ChangeNotifier {
       _setLoading(true);
       print('📋 리포트 로드 시작: $reportId');
 
-      _reportData = await _reportService.getReport(reportId);
+      _reportData = await _reportRepository.getReport(reportId);
       print('📋 리포트 데이터 로드 완료');
 
       if (_reportData != null) {
-        print('📹 비디오 URL: ${_reportData!.videoUrl}');
         print('📅 리포트 제목: ${_reportData!.title}');
         print('📊 리포트 점수: ${_reportData!.score}');
-        print('🔗 비디오 URL 길이: ${_reportData!.videoUrl.length}');
-        print(
-            '🔗 비디오 URL 첫 50자: ${_reportData!.videoUrl.length > 50 ? _reportData!.videoUrl.substring(0, 50) : _reportData!.videoUrl}');
 
         // 질문-답변 데이터가 있으면 영상이 있는 첫 번째 질문의 비디오 로드
         if (_reportData!.questionAnswers != null &&
@@ -109,6 +128,10 @@ class ReportController extends ChangeNotifier {
 
             print(
                 '🎬 영상이 있는 첫 번째 질문 (${originalIndex + 1}번) 비디오 로드: ${firstQuestionWithVideo.videoUrl}');
+            print('🔗 비디오 URL 길이: ${firstQuestionWithVideo.videoUrl.length}');
+            print(
+                '🔗 비디오 URL 첫 50자: ${firstQuestionWithVideo.videoUrl.length > 50 ? firstQuestionWithVideo.videoUrl.substring(0, 50) : firstQuestionWithVideo.videoUrl}');
+
             _selectedQuestionIndex = originalIndex;
             _currentVideoUrl = firstQuestionWithVideo.videoUrl;
             await _initializeVideoPlayer(firstQuestionWithVideo.videoUrl);
@@ -116,14 +139,9 @@ class ReportController extends ChangeNotifier {
             print('⚠️ 영상이 있는 질문이 없습니다');
             _setError('답변 영상이 있는 질문이 없습니다.');
           }
-        } else if (_reportData!.videoUrl.isNotEmpty) {
-          // 기존 방식: 메인 비디오 URL 사용
-          print('📹 메인 비디오 URL 사용');
-          _currentVideoUrl = _reportData!.videoUrl;
-          await _initializeVideoPlayer(_reportData!.videoUrl);
         } else {
-          print('⚠️ 비디오 URL이 비어있습니다');
-          _setError('비디오 URL이 없습니다. 면접이 제대로 완료되지 않았을 수 있습니다.');
+          print('⚠️ 질문-답변 데이터가 없습니다');
+          _setError('면접 데이터가 없습니다. 면접이 제대로 완료되지 않았을 수 있습니다.');
         }
       } else {
         print('❌ 리포트 데이터가 null입니다');
@@ -191,12 +209,13 @@ class ReportController extends ChangeNotifier {
       _isCreatingReport = true;
       notifyListeners();
 
-      // 서비스에 위임
-      final report = await _reportService.createReport(
-        interviewId: interviewId,
-        resumeId: resumeId,
-        resumeData: resumeData,
-      );
+      // Repository는 createReport 메소드가 없으므로 생략
+      // final report = await _reportRepository.createReport(
+      //   interviewId: interviewId,
+      //   resumeId: resumeId,
+      //   resumeData: resumeData,
+      // );
+      ReportModel? report;
 
       // 리포트 목록을 새로고침
       await loadReportList();
@@ -218,7 +237,8 @@ class ReportController extends ChangeNotifier {
   Future<bool> updateReportStatus(String reportId, String status) async {
     try {
       _setLoading(true);
-      final result = await _reportService.updateReportStatus(reportId, status);
+      final result =
+          await _reportRepository.updateReportStatus(reportId, status);
 
       // 상태 업데이트가 성공하면 목록 새로고침
       if (result) {
@@ -240,7 +260,7 @@ class ReportController extends ChangeNotifier {
   Future<bool> updateReportVideoUrl(String reportId, String videoUrl) async {
     try {
       final result =
-          await _reportService.updateReportVideoUrl(reportId, videoUrl);
+          await _reportRepository.updateReportVideoUrl(reportId, videoUrl);
 
       // 현재 로드된 보고서가 업데이트 대상과 같다면 비디오 플레이어 갱신
       if (result && _reportData != null && _reportData!.id == reportId) {
@@ -262,7 +282,7 @@ class ReportController extends ChangeNotifier {
     print('🗑️ 컨트롤러: 리포트 삭제 요청 - $reportId');
 
     try {
-      final result = await _reportService.deleteReport(reportId);
+      final result = await _reportRepository.deleteReport(reportId);
       print('🗑️ 삭제 결과: $result');
 
       // 삭제가 성공하면 목록 새로고침

@@ -2,10 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/report_controller.dart';
 import '../models/report_model.dart';
-import '../widgets/report/speech_speed_chart.dart';
-import '../widgets/report/gaze_analysis_chart.dart';
-import '../widgets/report/feedback_section.dart';
-import '../widgets/report/main_video_section.dart';
+
 import '../widgets/report/timeline_section.dart';
 import '../widgets/report/report_header_section.dart';
 
@@ -171,36 +168,11 @@ class _ReportViewContentState extends State<_ReportViewContent> {
                 ReportHeaderSection(reportData: reportData),
                 const SizedBox(height: 24),
 
-                // 메인 비디오 플레이어
-                MainVideoSection(
-                  controller: controller,
-                  reportData: reportData,
-                ),
-                const SizedBox(height: 16),
-
-                // 타임라인 (질문별 또는 레거시)
+                // 통합 타임라인 (질문별 영상 + 피드백)
                 TimelineSection(
                   controller: controller,
                   reportData: reportData,
                 ),
-                const SizedBox(height: 32),
-
-                // 말하기 속도 차트
-                SpeechSpeedChart(
-                  speechData: reportData.speechSpeedData,
-                  formatDuration: controller.formatDuration,
-                ),
-                const SizedBox(height: 32),
-
-                // 시선 처리 분석 차트
-                GazeAnalysisChart(
-                  gazeData: reportData.gazeData,
-                  formatDuration: controller.formatDuration,
-                ),
-                const SizedBox(height: 24),
-
-                // 피드백 섹션
-                const FeedbackSection(),
               ],
             ),
           ),

@@ -23,7 +23,7 @@ class ReportHeaderSection extends StatelessWidget {
               Text(
                 reportData.title,
                 style: const TextStyle(
-                  fontSize: 28,
+                  fontSize: 32,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -33,7 +33,7 @@ class ReportHeaderSection extends StatelessWidget {
               Text(
                 '${reportData.position} | ${reportData.field} | ${reportData.interviewType}',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 18,
                   color: Colors.grey.shade700,
                 ),
               ),

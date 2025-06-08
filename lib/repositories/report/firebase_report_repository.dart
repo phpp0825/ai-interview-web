@@ -1,10 +1,11 @@
-import 'package:fl_chart/fl_chart.dart';
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+
+import 'package:flutter/material.dart';
 import '../../models/report_model.dart';
 import '../../models/resume_model.dart';
-import '../../services/report/mock_report_data_service.dart';
+import '../../services/common/firebase_storage_service.dart';
 
 import 'report_repository_interface.dart';
 
@@ -188,7 +189,7 @@ class FirebaseReportRepository implements IReportRepository {
     }
   }
 
-  /// 리포트 삭제
+  /// 리포트 삭제 (영상 파일 포함)
   @override
   Future<bool> deleteReport(String reportId) async {
     try {
@@ -213,10 +214,13 @@ class FirebaseReportRepository implements IReportRepository {
         return false;
       }
 
-      // 리포트 삭제
+      // === Firebase Storage 영상 파일들 삭제 ===
+      await _deleteReportFiles(data, currentUser.uid);
+
+      // === Firestore 리포트 문서 삭제 ===
       await _firestore.collection('reports').doc(reportId).delete();
 
-      print('✅ 리포트 삭제 완료: $reportId');
+      print('✅ 리포트 및 관련 파일 삭제 완료: $reportId');
       return true;
     } catch (e) {
       print('❌ 리포트 삭제 중 오류 발생: $e');
@@ -224,71 +228,114 @@ class FirebaseReportRepository implements IReportRepository {
     }
   }
 
+  /// 리포트와 관련된 Firebase Storage 파일들 삭제
+  Future<void> _deleteReportFiles(
+      Map<String, dynamic> data, String userId) async {
+    try {
+      print('📂 리포트 관련 Firebase Storage 파일 삭제 시작...');
+
+      final storageService = FirebaseStorageService();
+      int deletedCount = 0;
+
+      // === 1. videoUrls 배열에서 파일들 삭제 ===
+      if (data['videoUrls'] != null && data['videoUrls'] is List) {
+        final videoUrls = data['videoUrls'] as List;
+        print('🎬 삭제할 영상 파일 개수: ${videoUrls.length}개');
+
+        for (final videoUrl in videoUrls) {
+          if (videoUrl != null && videoUrl.toString().isNotEmpty) {
+            final success =
+                await _deleteFileFromUrl(videoUrl.toString(), storageService);
+            if (success) deletedCount++;
+          }
+        }
+      }
+
+      // === 2. mainVideoUrl 단일 파일 삭제 ===
+      if (data['mainVideoUrl'] != null &&
+          data['mainVideoUrl'].toString().isNotEmpty) {
+        final success = await _deleteFileFromUrl(
+            data['mainVideoUrl'].toString(), storageService);
+        if (success) deletedCount++;
+      }
+
+      // === 3. questionAnswers 내부의 videoUrl들 삭제 ===
+      if (data['questionAnswers'] != null && data['questionAnswers'] is List) {
+        final questionAnswers = data['questionAnswers'] as List;
+
+        for (final qa in questionAnswers) {
+          if (qa != null && qa is Map && qa['videoUrl'] != null) {
+            final videoUrl = qa['videoUrl'].toString();
+            if (videoUrl.isNotEmpty) {
+              final success =
+                  await _deleteFileFromUrl(videoUrl, storageService);
+              if (success) deletedCount++;
+            }
+          }
+        }
+      }
+
+      // === 4. 메인 videoUrl 필드 삭제 ===
+      if (data['videoUrl'] != null && data['videoUrl'].toString().isNotEmpty) {
+        final success = await _deleteFileFromUrl(
+            data['videoUrl'].toString(), storageService);
+        if (success) deletedCount++;
+      }
+
+      // === 5. 면접 폴더 전체 정리 (Firebase Storage) ===
+      final reportId = data['id'] ?? data['reportId'] ?? 'unknown';
+      if (reportId != 'unknown') {
+        print('🧹 Firebase 면접 폴더 전체 정리 시도: $userId/$reportId');
+        await storageService.cleanupInterviewFolder(userId, reportId);
+      }
+
+      print('✅ 총 ${deletedCount}개의 파일이 삭제되었습니다.');
+    } catch (e) {
+      print('⚠️ 파일 삭제 중 일부 오류 발생 (계속 진행): $e');
+      // 파일 삭제 실패해도 리포트 삭제는 계속 진행
+    }
+  }
+
+  /// Firebase Storage URL에서 파일 삭제
+  Future<bool> _deleteFileFromUrl(
+      String url, FirebaseStorageService storageService) async {
+    try {
+      if (!url.contains('firebasestorage.googleapis.com') &&
+          !url.contains('storage.googleapis.com')) {
+        print(
+            '⚠️ Firebase Storage URL이 아닙니다: ${url.length > 50 ? url.substring(0, 50) + '...' : url}');
+        return false;
+      }
+
+      // Firebase Storage URL에서 파일 경로 추출
+      final ref = FirebaseStorage.instance.refFromURL(url);
+      final filePath = ref.fullPath;
+
+      print('🗑️ 파일 삭제 중: $filePath');
+      final success = await storageService.deleteFile(filePath);
+
+      if (success) {
+        print('✅ 파일 삭제 성공: $filePath');
+      } else {
+        print('❌ 파일 삭제 실패: $filePath');
+      }
+
+      return success;
+    } catch (e) {
+      print('❌ 파일 삭제 중 오류: $e');
+      return false;
+    }
+  }
+
   /// Firestore 문서를 ReportModel로 변환
   ReportModel _convertFirestoreToReportModel(
       String id, Map<String, dynamic> data) {
-    // 타임스탬프 데이터 변환
-    List<TimeStampModel> timestamps = [];
-    if (data['timestamps'] != null) {
-      timestamps = (data['timestamps'] as List).map((ts) {
-        return TimeStampModel(
-          time: ts['time'] ?? 0,
-          label: ts['label'] ?? '',
-          description: ts['description'] ?? '',
-        );
-      }).toList();
-    }
-
-    // 말하기 속도 데이터 변환
-    List<FlSpot> speechSpeedData = [];
-    if (data['speechSpeedData'] != null) {
-      speechSpeedData = (data['speechSpeedData'] as List).map((point) {
-        return FlSpot(
-          point['x']?.toDouble() ?? 0.0,
-          point['y']?.toDouble() ?? 0.0,
-        );
-      }).toList();
-    }
-
-    // 시선 처리 데이터 변환
-    List<ScatterSpot> gazeData = [];
-    if (data['gazeData'] != null) {
-      gazeData = (data['gazeData'] as List).map((point) {
-        return ScatterSpot(
-          point['x']?.toDouble() ?? 0.0,
-          point['y']?.toDouble() ?? 0.0,
-          color: _getColorFromString(point['color'] ?? 'blue'),
-          radius: point['radius']?.toDouble() ?? 4.0,
-        );
-      }).toList();
-    }
-
-    // 새로운 면접 세부 정보 필드들 파싱
+    // 질문-답변 데이터 변환
     List<QuestionAnswerModel>? questionAnswers;
     if (data['questionAnswers'] != null) {
       questionAnswers = (data['questionAnswers'] as List?)
           ?.map((qa) => QuestionAnswerModel.fromJson(qa))
           .toList();
-    }
-
-    List<SkillEvaluationModel>? skillEvaluations;
-    if (data['skillEvaluations'] != null) {
-      skillEvaluations = (data['skillEvaluations'] as List)
-          .map((se) => SkillEvaluationModel.fromJson(se))
-          .toList();
-    }
-
-    // 비디오 URL 처리: videoUrls 배열이 있으면 첫 번째를 사용, 없으면 videoUrl 필드 사용
-    String videoUrl = '';
-    if (data['videoUrls'] != null && (data['videoUrls'] as List).isNotEmpty) {
-      // videoUrls 배열에서 첫 번째 URL 사용
-      videoUrl = (data['videoUrls'] as List).first.toString();
-      print('📹 비디오 URL 로드됨: $videoUrl');
-      print('📋 총 비디오 개수: ${(data['videoUrls'] as List).length}개');
-    } else {
-      // 기존 videoUrl 필드 사용 (하위 호환성)
-      videoUrl = data['videoUrl'] ?? '';
-      print('📹 기존 비디오 URL 사용: $videoUrl');
     }
 
     return ReportModel(
@@ -300,36 +347,8 @@ class FirebaseReportRepository implements IReportRepository {
       interviewType: data['interviewType'] ?? '직무면접',
       duration: data['duration'] ?? 30,
       score: data['score'] ?? 0,
-      videoUrl: videoUrl, // 수정된 비디오 URL 처리
-      timestamps: timestamps,
-      speechSpeedData: speechSpeedData,
-      gazeData: gazeData,
       questionAnswers: questionAnswers,
-      skillEvaluations: skillEvaluations,
-      feedback: data['feedback'],
-      grade: data['grade'],
-      categoryScores: data['categoryScores'] != null
-          ? Map<String, int>.from(data['categoryScores'])
-          : null,
     );
-  }
-
-  /// 색상 문자열을 Colors 객체로 변환
-  Color _getColorFromString(String colorName) {
-    switch (colorName.toLowerCase()) {
-      case 'red':
-        return Colors.red;
-      case 'blue':
-        return Colors.blue;
-      case 'green':
-        return Colors.green;
-      case 'purple':
-        return Colors.purple;
-      case 'yellow':
-        return Colors.yellow;
-      default:
-        return Colors.blue;
-    }
   }
 
   /// 면접 완료 후 최종 리포트 생성 및 저장 (ReportModel 직접 생성)
@@ -350,7 +369,7 @@ class FirebaseReportRepository implements IReportRepository {
     required String userId,
   }) async {
     try {
-      print('📊 ReportModel 형식으로 면접 리포트 생성 시작...');
+      print('📊 면접 리포트 생성 시작...');
       print('🎬 받은 비디오 URL 개수: ${videoUrls.length}');
       for (int i = 0; i < videoUrls.length; i++) {
         print('🎬 비디오 ${i + 1}: ${videoUrls[i]}');
@@ -359,64 +378,20 @@ class FirebaseReportRepository implements IReportRepository {
       // 리포트 ID 생성
       final reportId = 'report_${DateTime.now().millisecondsSinceEpoch}';
 
-      // 비디오 URL 처리: 첫 번째 URL을 메인 videoUrl로 사용
+      // 메인 비디오 URL 설정
       String mainVideoUrl = videoUrls.isNotEmpty ? videoUrls.first : '';
       print('📹 메인 비디오 URL: $mainVideoUrl');
 
-      // === 아래부터는 모두 목업 데이터로 고정 ===
-      // 목업 기술 평가 생성
-      final skillEvaluations =
-          MockReportDataService.generateMockSkillEvaluations();
-      // 목업 피드백 생성
-      final feedback = MockReportDataService.generateMockFeedback();
-      // 말하기 속도 데이터 생성 (목업)
-      final speechSpeedData =
-          MockReportDataService.generateSpeechSpeedData(120); // 항상 2분짜리 목업
-      // 시선 처리 데이터 생성 (목업)
-      final gazeData = MockReportDataService.generateGazeData();
-      // 전체 점수 계산 (목업)
-      final totalScore = 85; // 목업 점수
-      // 등급 계산
-      final grade = MockReportDataService.calculateGrade(totalScore);
-      // 카테고리별 점수 생성
-      final categoryScores = MockReportDataService.generateCategoryScores();
+      // === 기본 데이터 (서버 응답이 없을 때 임시 사용) ===
+      final totalScore = 0; // 서버 분석 후 업데이트됨
+      final grade = "분석중";
 
-      // 질문-답변 데이터 생성 (실제 비디오 URL들과 연결)
+      // 질문-답변 데이터는 서버 분석 후 추가됨 (초기에는 빈 배열)
       List<QuestionAnswerModel> questionAnswers = [];
 
-      // 기본 면접 질문들 (목업)
-      final defaultQuestions = [
-        '간단한 자기소개와 지원 동기를 말씀해 주세요.',
-        '팀 프로젝트에서 협업의 중요성과 본인의 역할에 대해 설명해 주세요.',
-        '새로운 기술을 학습하고 적용한 경험이 있다면 공유해 주세요.',
-      ];
+      print('✅ 기본 리포트 데이터 준비 완료 (서버 분석 대기)');
 
-      // 각 질문에 해당하는 비디오 URL 연결
-      for (int i = 0; i < defaultQuestions.length; i++) {
-        final questionText = defaultQuestions[i];
-        // i번째 비디오 URL이 있으면 사용, 없으면 빈 문자열
-        final videoUrl = i < videoUrls.length ? videoUrls[i] : '';
-
-        questionAnswers.add(QuestionAnswerModel(
-          question: questionText,
-          answer: '답변 내용입니다.', // 목업 답변
-          score: 85 + (i * 2), // 질문별로 조금씩 다른 점수
-          evaluation: '좋은 답변입니다.', // 목업 피드백 (evaluation으로 수정)
-          videoUrl: videoUrl, // 실제 녹화된 비디오 URL 연결
-          answerDuration: 60, // 목업 답변 시간 (answerDuration으로 수정)
-        ));
-
-        if (videoUrl.isNotEmpty) {
-          print('🎬 질문 ${i + 1}: "${questionText}" → 비디오 연결됨');
-        } else {
-          print('⚠️ 질문 ${i + 1}: "${questionText}" → 비디오 없음');
-        }
-      }
-
-      print(
-          '✅ 총 ${questionAnswers.length}개 질문에 ${videoUrls.length}개 비디오 연결 완료');
-
-      // ReportModel 직접 생성 (질문/답변/스킬/피드백 등도 목업)
+      // ReportModel 생성 (정리된 구조)
       final report = ReportModel(
         id: reportId,
         title: '${resume.position} 면접 리포트',
@@ -425,41 +400,223 @@ class FirebaseReportRepository implements IReportRepository {
         position: resume.position,
         interviewType: '직무면접',
         duration: duration, // 실제 면접 시간
-        score: totalScore,
-        videoUrl: mainVideoUrl, // 첫 번째 비디오 URL 사용
-        timestamps: [], // 타임스탬프 제외
-        speechSpeedData: speechSpeedData,
-        gazeData: gazeData,
-        questionAnswers: questionAnswers, // 실제 비디오 URL이 연결된 질문-답변 데이터
-        skillEvaluations: skillEvaluations,
-        feedback: feedback,
-        grade: grade,
-        categoryScores: categoryScores,
+        score: totalScore, // 서버 분석 후 업데이트됨
+        questionAnswers: questionAnswers, // 서버 분석 후 추가됨
       );
 
-      // Firestore의 reports 컬렉션에 저장
+      // Firestore의 reports 컬렉션에 저장 (Firebase Storage 방식)
       await _firestore.collection('reports').doc(reportId).set({
         ...report.toJson(),
         'userId': userId,
         'resumeId': resume.resume_id.isNotEmpty ? resume.resume_id : reportId,
-        'status': 'completed',
+        'status': 'completed', // 완료 상태로 저장
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
-        'videoUrls': videoUrls, // 모든 비디오 URL 저장 (하위 호환성)
-        'mainVideoUrl': mainVideoUrl, // 메인 비디오 URL 별도 저장
+        'videoCount': videoUrls.length, // 영상 개수 저장
+        'hasFirebaseVideos': videoUrls.isNotEmpty, // Firebase Storage 영상 여부
+        'hasServerFeedback': false, // 아직 서버 피드백 없음
+        'storageType': 'firebase', // Firebase Storage 사용 명시
       });
 
-      print('🎉 ReportModel 형식 리포트 저장 완료! ID: $reportId');
+      print('🎉 기본 리포트 저장 완료! ID: $reportId');
       print('⏱️ 면접 소요 시간: ${duration ~/ 60}분 ${duration % 60}초');
       print('🎬 저장된 비디오 개수: ${videoUrls.length}개');
-      print('📊 총점: $totalScore점 ($grade)');
       print('📹 메인 비디오 URL 저장 완료: $mainVideoUrl');
-      print('🎯 각 질문별 비디오 URL 연결 완료');
+      print('🔄 서버 AI 분석 대기 중...');
 
       return reportId;
     } catch (e) {
-      print('❌ ReportModel 형식 리포트 생성 실패: $e');
+      print('❌ 리포트 생성 실패: $e');
       throw Exception('리포트 생성 중 오류가 발생했습니다: $e');
+    }
+  }
+
+  /// === 서버 피드백을 Firestore에 저장 (새로 추가) ===
+  /// 면접 완료 후 서버에서 받은 포즈 분석과 평가 결과를 저장합니다
+  Future<void> updateInterviewFeedback({
+    required String reportId,
+    required String userId,
+    String? poseAnalysis,
+    String? evaluationResult,
+  }) async {
+    try {
+      print('💾 서버 피드백 저장 시작...');
+      print('  - 리포트 ID: $reportId');
+      print('  - 사용자 ID: $userId');
+      print('  - 포즈 분석 길이: ${poseAnalysis?.length ?? 0}자');
+      print('  - 평가 결과 길이: ${evaluationResult?.length ?? 0}자');
+
+      // 기존 리포트 문서 조회
+      final doc = await _firestore.collection('reports').doc(reportId).get();
+      if (!doc.exists) {
+        throw Exception('존재하지 않는 리포트입니다: $reportId');
+      }
+
+      final data = doc.data() as Map<String, dynamic>;
+      if (data['userId'] != userId) {
+        throw Exception('해당 리포트에 대한 접근 권한이 없습니다');
+      }
+
+      // 서버 피드백 데이터 준비
+      final Map<String, dynamic> updateData = {
+        'updatedAt': FieldValue.serverTimestamp(),
+        'serverFeedbackUpdatedAt': FieldValue.serverTimestamp(),
+      };
+
+      // 포즈 분석 결과가 있으면 추가
+      if (poseAnalysis != null && poseAnalysis.isNotEmpty) {
+        updateData['poseAnalysis'] = poseAnalysis;
+        updateData['hasPoseAnalysis'] = true;
+        print('✅ 포즈 분석 추가됨');
+      }
+
+      // 평가 결과가 있으면 추가하고 파싱하여 리포트 업데이트
+      if (evaluationResult != null && evaluationResult.isNotEmpty) {
+        updateData['evaluationResult'] = evaluationResult;
+        updateData['hasEvaluationResult'] = true;
+
+        // 평가 결과에서 피드백과 점수 추출 시도
+        updateData['feedback'] = evaluationResult; // 전체 평가 결과를 피드백으로 사용
+
+        // 간단한 점수 추출 (예: "총점: 85점" 패턴 찾기)
+        final scorePattern = RegExp(r'(\d+)\s*점');
+        final scoreMatch = scorePattern.firstMatch(evaluationResult);
+        if (scoreMatch != null) {
+          final score = int.tryParse(scoreMatch.group(1) ?? '0') ?? 0;
+          updateData['score'] = score;
+
+          // 점수에 따른 등급 계산
+          String grade = "C";
+          if (score >= 90)
+            grade = "A+";
+          else if (score >= 85)
+            grade = "A";
+          else if (score >= 80)
+            grade = "B+";
+          else if (score >= 75)
+            grade = "B";
+          else if (score >= 70) grade = "C+";
+
+          updateData['grade'] = grade;
+          print('📊 점수 추출됨: $score점 ($grade)');
+        }
+
+        // 기존 questionAnswers 보존 (videoUrls 배열은 더 이상 사용하지 않음)
+        final existingQuestionAnswers = data['questionAnswers'] as List?;
+        if (existingQuestionAnswers != null &&
+            existingQuestionAnswers.isNotEmpty) {
+          print(
+              '✅ 기존 questionAnswers 데이터 보존됨 (${existingQuestionAnswers.length}개)');
+        }
+
+        print('✅ 평가 결과 추가됨');
+      }
+
+      // 상태 업데이트 (완료 상태 유지)
+      updateData['status'] = 'completed';
+      updateData['hasServerFeedback'] = true;
+
+      // Firestore 문서 업데이트
+      await _firestore.collection('reports').doc(reportId).update(updateData);
+
+      print('🎉 서버 피드백 저장 완료!');
+    } catch (e) {
+      print('❌ 서버 피드백 저장 실패: $e');
+      throw Exception('서버 피드백 저장 중 오류가 발생했습니다: $e');
+    }
+  }
+
+  /// === 질문별 실시간 피드백을 Firestore에 저장 ===
+  /// 각 질문 답변 후 받은 실시간 피드백을 저장합니다
+  Future<void> updateQuestionFeedback({
+    required String reportId,
+    required String userId,
+    required int questionIndex,
+    required String question,
+    required String videoUrl,
+    String? answer,
+    String? poseAnalysis,
+    String? evaluationResult,
+  }) async {
+    try {
+      print('💾 질문별 피드백 저장 시작...');
+      print('  - 리포트 ID: $reportId');
+      print('  - 질문 번호: ${questionIndex + 1}');
+      print(
+          '  - 질문: ${question.length > 50 ? question.substring(0, 50) + '...' : question}');
+      print('  - Firebase 영상 URL: ${videoUrl.isNotEmpty ? videoUrl : "영상 없음"}');
+
+      // 기존 리포트 문서 조회
+      final doc = await _firestore.collection('reports').doc(reportId).get();
+      if (!doc.exists) {
+        throw Exception('존재하지 않는 리포트입니다: $reportId');
+      }
+
+      final data = doc.data() as Map<String, dynamic>;
+      if (data['userId'] != userId) {
+        throw Exception('해당 리포트에 대한 접근 권한이 없습니다');
+      }
+
+      // 기존 questionAnswers 배열 가져오기 (questionFeedbacks 제거, questionAnswers만 사용)
+      List<Map<String, dynamic>> questionAnswers =
+          List<Map<String, dynamic>>.from(data['questionAnswers'] ?? []);
+
+      // 평가 결과에서 점수 추출
+      int score = 0;
+      if (evaluationResult != null && evaluationResult.isNotEmpty) {
+        final scorePatterns = [
+          RegExp(r'(\d+)\s*점'),
+          RegExp(r'점수:\s*(\d+)'),
+          RegExp(r'총점:\s*(\d+)'),
+        ];
+
+        for (final pattern in scorePatterns) {
+          final match = pattern.firstMatch(evaluationResult);
+          if (match != null) {
+            score = int.tryParse(match.group(1) ?? '0') ?? 0;
+            break;
+          }
+        }
+      }
+
+      // questionAnswers 형식으로 바로 저장 (Firebase Storage URL 포함)
+      final questionAnswer = {
+        'question': question,
+        'answer': answer ?? '음성 인식 결과를 가져오지 못했습니다.',
+        'videoUrl': videoUrl, // Firebase Storage 다운로드 URL
+        'score': score,
+        'evaluation': evaluationResult ?? '',
+        'answerDuration': 60, // 기본값
+        'poseAnalysis': poseAnalysis,
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+
+      // 기존 답변이 있는지 확인 (questionIndex 대신 question으로 찾기)
+      final existingIndex =
+          questionAnswers.indexWhere((qa) => qa['question'] == question);
+
+      if (existingIndex >= 0) {
+        // 기존 답변 업데이트
+        questionAnswers[existingIndex] = questionAnswer;
+        print('✅ 기존 답변 업데이트됨');
+      } else {
+        // 새 답변 추가
+        questionAnswers.add(questionAnswer);
+        print('✅ 새 답변 추가됨');
+      }
+
+      // Firestore 문서 업데이트 (questionFeedbacks 제거, questionAnswers만 사용)
+      await _firestore.collection('reports').doc(reportId).update({
+        'questionAnswers': questionAnswers,
+        'hasQuestionAnswers': true,
+        'lastQuestionFeedbackAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      print('🎉 질문 ${questionIndex + 1} 피드백 저장 완료!');
+    } catch (e) {
+      print('❌ 질문별 피드백 저장 실패: $e');
+      throw Exception('질문별 피드백 저장 중 오류가 발생했습니다: $e');
     }
   }
 }

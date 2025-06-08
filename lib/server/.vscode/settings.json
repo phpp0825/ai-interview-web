@@ -1,0 +1,11 @@
+// interview_app/.vscode/settings.json
+{
+  "python.analysis.extraPaths": [
+    "./",   // 부모 디렉터리(패키지 상위 경로)
+    "./interview_app"     // 현재 디렉터리도 함께 검색
+  ],
+
+  // 통합 터미널에서 선택된 인터프리터의 환경을 자동 활성화
+  "python.terminal.activateEnvironment": true,
+  "python.defaultInterpreterPath": "C:/anaconda/envs/sp_env/python.exe"
+}

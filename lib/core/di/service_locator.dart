@@ -5,8 +5,7 @@ import '../../repositories/report/report_repository_interface.dart';
 import '../../repositories/resume/firebase_resume_repository.dart';
 import '../../repositories/resume/resume_repository_interface.dart';
 import '../../services/common/video_recording_service.dart';
-import '../../services/report/report_service.dart';
-import '../../services/report/interfaces/report_service_interface.dart';
+
 import '../../services/resume/resume_service.dart';
 import '../../services/resume/interfaces/resume_service_interface.dart';
 
@@ -30,9 +29,9 @@ Future<void> setupServiceLocator() async {
   // 기본 서비스 (비디오+음성 통합)
   serviceLocator.registerLazySingleton(() => VideoRecordingService());
 
-  // Report Service
-  serviceLocator.registerLazySingleton<IReportService>(
-      () => ReportService(serviceLocator<IReportRepository>()));
+  // 로컬 비디오 저장 서비스
+
+  // Report Service는 제거됨 - Repository를 직접 사용
 
   // Resume Service
   serviceLocator.registerLazySingleton<IResumeService>(
