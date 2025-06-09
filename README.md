@@ -31,57 +31,6 @@
 - **OpenCV**: 영상 처리
 - **OpenAI API**: GPT 기반 답변 평가
 
-## 🚀 설치 및 실행
-
-### **1. 사전 요구사항**
-
-```bash
-# Flutter 설치 확인
-flutter doctor
-
-# Python 3.8+ 설치 확인
-python --version
-```
-
-### **2. 프론트엔드 설정**
-
-```bash
-# 프로젝트 클론
-git clone <repository-url>
-cd ai-interview-web
-
-# Flutter 패키지 설치
-flutter pub get
-
-# Firebase 설정 (firebase_options.dart 파일 필요)
-# Firebase Console에서 프로젝트 생성 후 설정 파일 다운로드
-
-# 웹 앱 실행
-flutter run -d chrome
-```
-
-### **3. 백엔드 설정**
-
-```bash
-# Python 가상환경 생성
-cd lib/server
-python -m venv venv
-
-# 가상환경 활성화 (Windows)
-venv\Scripts\activate
-# 가상환경 활성화 (Mac/Linux)
-source venv/bin/activate
-
-# 패키지 설치
-pip install -r requirements.txt
-
-# 환경변수 설정 (.env 파일 생성)
-# OPENAI_API_KEY=your_openai_api_key
-
-# 서버 실행
-python unified_api.py
-```
-
 ## 📁 프로젝트 구조
 
 ```
@@ -157,6 +106,4 @@ ai-interview-web/
 
 - ✅ 답변 관련성 분석
 - ✅ 완성도 평가
-- ✅ 명확성 체크
-- ✅ 전문성 판단
 - ✅ 개선 방안 제시
