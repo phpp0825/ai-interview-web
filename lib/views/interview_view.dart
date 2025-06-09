@@ -204,24 +204,17 @@ class _InterviewViewState extends State<InterviewView> {
       children: [
         // === 면접관 영상 영역 (전체 화면) ===
         Expanded(
-          child: Container(
-            margin: const EdgeInsets.all(16.0),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade300),
-              borderRadius: BorderRadius.circular(8.0),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8.0),
-              child: InterviewServerVideoView(
-                serverResponseImage: null,
-                isConnected: true,
-                isInterviewStarted: controller.isInterviewStarted,
-                videoPath: controller.currentInterviewerVideoPath,
-                isVideoPlaying: controller.isInterviewerVideoPlaying,
-                isCountdownActive: controller.isCountdownActive,
-                countdownSeconds: controller.countdownSeconds,
-                onVideoCompleted: controller.onInterviewerVideoCompleted,
-              ),
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: InterviewServerVideoView(
+              serverResponseImage: null,
+              isConnected: true,
+              isInterviewStarted: controller.isInterviewStarted,
+              videoPath: controller.currentInterviewerVideoPath,
+              isVideoPlaying: controller.isInterviewerVideoPlaying,
+              isCountdownActive: controller.isCountdownActive,
+              countdownSeconds: controller.countdownSeconds,
+              onVideoCompleted: controller.onInterviewerVideoCompleted,
             ),
           ),
         ),

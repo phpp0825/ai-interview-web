@@ -506,17 +506,23 @@ class FirebaseReportRepository implements IReportRepository {
         if (score > 0) {
           updateData['score'] = score;
 
-          // 점수에 따른 등급 계산
-          String grade = "C";
-          if (score >= 90)
+          // 점수에 따른 등급 계산 (더 엄격한 기준)
+          String grade = "F";
+          if (score >= 95)
             grade = "A+";
-          else if (score >= 85)
+          else if (score >= 90)
             grade = "A";
+          else if (score >= 85)
+            grade = "A-";
           else if (score >= 80)
             grade = "B+";
           else if (score >= 75)
             grade = "B";
-          else if (score >= 70) grade = "C+";
+          else if (score >= 70)
+            grade = "B-";
+          else if (score >= 65)
+            grade = "C+";
+          else if (score >= 60) grade = "C";
 
           updateData['grade'] = grade;
           print('📊 점수 추출됨: $score점 ($grade)');

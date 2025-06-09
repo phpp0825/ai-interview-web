@@ -185,7 +185,6 @@ class _InterviewServerVideoViewState extends State<InterviewServerVideoView> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
         border: Border.all(color: Colors.grey.shade300),
         borderRadius: BorderRadius.circular(8.0),
@@ -242,10 +241,11 @@ class _InterviewServerVideoViewState extends State<InterviewServerVideoView> {
   Widget _buildVideoPlayer() {
     return Stack(
       children: [
-        // 메인 비디오 플레이어
+        // 메인 비디오 플레이어 - 전체 영상이 보이도록 개선된 레이아웃
         SizedBox.expand(
           child: FittedBox(
-            fit: BoxFit.cover,
+            fit: BoxFit.contain, // contain으로 변경해서 영상이 잘리지 않도록
+            alignment: Alignment.center, // 중앙 정렬
             child: SizedBox(
               width: _videoController!.value.size.width,
               height: _videoController!.value.size.height,

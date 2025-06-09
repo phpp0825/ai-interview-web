@@ -1,246 +1,221 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/report_model.dart';
-import '../repositories/report/report_repository_interface.dart';
+import '../services/report/report_service.dart';
+import '../services/report/video_player_service.dart';
 import '../core/di/service_locator.dart';
-import 'package:video_player/video_player.dart';
 
-/// 간단한 리포트 컨트롤러
-/// 리포트 목록과 기본 데이터만 관리합니다.
+/// 간단하고 깔끔한 리포트 컨트롤러
+///
+/// 이 컨트롤러는 UI 상태 관리만 담당하고, 비즈니스 로직은 서비스로 분리했습니다.
+/// 이렇게 하면 코드가 더 깔끔해지고, 테스트하기 쉬워집니다.
 class ReportController extends ChangeNotifier {
-  // 의존성
-  final IReportRepository _reportRepository;
+  // 서비스 의존성
+  final ReportService _reportService;
+  final VideoPlayerService _videoPlayerService;
 
-  // 상태 변수
+  // UI 상태 변수들
   ReportModel? _reportData;
   bool _isLoading = true;
   String? _error;
   bool _isLoadingReports = false;
   List<Map<String, dynamic>> _reportList = [];
   bool _isCreatingReport = false;
-  bool _isVideoInitialized = false;
-  VideoPlayerController? _videoPlayerController;
-  int _selectedQuestionIndex = 0; // 현재 선택된 질문 인덱스
-  String _currentVideoUrl = ''; // 현재 재생 중인 비디오 URL
+  int _selectedQuestionIndex = 0;
 
-  // Getters
+  // Getters - UI에서 사용할 상태들
   ReportModel? get reportData => _reportData;
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isLoadingReports => _isLoadingReports;
   List<Map<String, dynamic>> get reportList => _reportList;
   bool get isCreatingReport => _isCreatingReport;
-  bool get isVideoInitialized => _isVideoInitialized;
-  dynamic get videoPlayerController => _videoPlayerController;
   int get selectedQuestionIndex => _selectedQuestionIndex;
-  String get currentVideoUrl => _currentVideoUrl;
 
-  /// 영상 시간 이동 - 차트나 타임라인에서 호출됨 (Duration 기반)
-  /// 영상 시간 이동 - 차트나 타임라인에서 호출됨 (Duration 기반)
-  /// 현재 비디오 duration 문제로 인해 기능 제한됨
-  Future<void> seekToTime(Duration duration) async {
-    try {
-      print('🎯 시간 이동 요청: ${duration.inSeconds}초');
+  // 비디오 관련 Getters - VideoPlayerService로부터 가져옴
+  bool get isVideoInitialized => _videoPlayerService.isVideoInitialized;
+  dynamic get videoPlayerController =>
+      _videoPlayerService.videoPlayerController;
+  String get currentVideoUrl => _videoPlayerService.currentVideoUrl;
 
-      // Duration 유효성 검사
-      if (duration.isNegative) {
-        print('⚠️ 음수 duration 감지: $duration - HTML5 플레이어에서 처리');
-        return;
-      }
-
-      // 1시간을 초과하는 경우 거부
-      if (duration.inSeconds > 3600) {
-        print('⚠️ 과도하게 긴 duration: ${duration.inSeconds}초');
-        return;
-      }
-
-      // HTML5 비디오 플레이어로 시간 이동 로그만 출력
-      // 실제 구현은 각 HTML5VideoPlayer에서 처리됨
-      print('✅ HTML5 비디오 플레이어로 시간 이동: ${duration.inSeconds}초');
-    } catch (e, stackTrace) {
-      print('❌ 시간 이동 실패: $e');
-      print('스택 트레이스: $stackTrace');
-    }
+  /// 생성자 - 서비스들을 주입받습니다
+  ReportController()
+      : _reportService = serviceLocator<ReportService>(),
+        _videoPlayerService = serviceLocator<VideoPlayerService>() {
+    _initializeController();
   }
 
-  /// 영상 시간 이동 - 초 단위 (기존 호환성)
-  Future<void> seekToTimeInSeconds(int seconds) async {
-    await seekToTime(Duration(seconds: seconds));
+  /// 컨트롤러 초기화
+  Future<void> _initializeController() async {
+    await loadReportList();
   }
 
-  dynamic formatDuration(int seconds) {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    int hours = seconds ~/ 3600;
-    int minutes = (seconds % 3600) ~/ 60;
-    int secs = seconds % 60;
-    return "${twoDigits(hours)}:${twoDigits(minutes)}:${twoDigits(secs)}";
-  }
-
-  /// 생성자
-  ReportController() : _reportRepository = serviceLocator<IReportRepository>() {
-    loadReportList();
-  }
-
-  // 리포트 목록 로드
+  /// 리포트 목록 로드
   Future<void> loadReportList() async {
     try {
-      _isLoadingReports = true;
-      _error = null;
-      notifyListeners();
+      _setLoadingReports(true);
+      _clearError();
 
-      _reportList = await _reportRepository.getCurrentUserReportSummaries();
+      print('📋 Controller: 리포트 목록 로드 시작');
+      _reportList = await _reportService.getReportList();
+      print('📋 Controller: 리포트 목록 로드 완료 (${_reportList.length}개)');
 
-      _isLoadingReports = false;
-      notifyListeners();
+      _setLoadingReports(false);
     } catch (e) {
-      _error = '리포트 목록을 불러오는데 실패했습니다: $e';
-      _isLoadingReports = false;
-      notifyListeners();
+      print('❌ Controller: 리포트 목록 로드 실패 - $e');
+      _setError('리포트 목록을 불러오는데 실패했습니다');
+      _setLoadingReports(false);
     }
   }
 
-  /// 리포트 데이터 로드
+  /// 리포트 상세 데이터 로드
   Future<void> loadReport(String reportId) async {
     try {
       _setLoading(true);
-      print('📋 리포트 로드 시작: $reportId');
+      _clearError();
 
-      _reportData = await _reportRepository.getReport(reportId);
-      print('📋 리포트 데이터 로드 완료');
+      print('📋 Controller: 리포트 로드 시작 - $reportId');
 
-      if (_reportData != null) {
-        print('📅 리포트 제목: ${_reportData!.title}');
-        print('📊 리포트 점수: ${_reportData!.score}');
+      // 1. 리포트 데이터 로드
+      _reportData = await _reportService.getReportDetail(reportId);
 
-        // 질문-답변 데이터가 있으면 영상이 있는 첫 번째 질문의 비디오 로드
-        if (_reportData!.questionAnswers != null &&
-            _reportData!.questionAnswers!.isNotEmpty) {
-          // 영상이 있는 첫 번째 질문 찾기
-          final questionsWithVideo = _reportData!.questionAnswers!
-              .where((qa) => qa.videoUrl.isNotEmpty)
-              .toList();
-
-          if (questionsWithVideo.isNotEmpty) {
-            // 원본 리스트에서의 인덱스 찾기
-            final firstQuestionWithVideo = questionsWithVideo.first;
-            final originalIndex =
-                _reportData!.questionAnswers!.indexOf(firstQuestionWithVideo);
-
-            print(
-                '🎬 영상이 있는 첫 번째 질문 (${originalIndex + 1}번) 비디오 로드: ${firstQuestionWithVideo.videoUrl}');
-            print('🔗 비디오 URL 길이: ${firstQuestionWithVideo.videoUrl.length}');
-            print(
-                '🔗 비디오 URL 첫 50자: ${firstQuestionWithVideo.videoUrl.length > 50 ? firstQuestionWithVideo.videoUrl.substring(0, 50) : firstQuestionWithVideo.videoUrl}');
-
-            _selectedQuestionIndex = originalIndex;
-            _currentVideoUrl = firstQuestionWithVideo.videoUrl;
-            await _initializeVideoPlayer(firstQuestionWithVideo.videoUrl);
-          } else {
-            print('⚠️ 영상이 있는 질문이 없습니다');
-            _setError('답변 영상이 있는 질문이 없습니다.');
-          }
-        } else {
-          print('⚠️ 질문-답변 데이터가 없습니다');
-          _setError('면접 데이터가 없습니다. 면접이 제대로 완료되지 않았을 수 있습니다.');
-        }
-      } else {
-        print('❌ 리포트 데이터가 null입니다');
-        _setError('리포트 데이터를 찾을 수 없습니다.');
+      if (_reportData == null) {
+        _setError('리포트 데이터를 찾을 수 없습니다');
+        _setLoading(false);
+        return;
       }
 
+      // 2. 첫 번째 영상이 있는 질문 찾기 및 비디오 초기화
+      await _initializeFirstVideo();
+
       _setLoading(false);
+      print('✅ Controller: 리포트 로드 완료');
     } catch (e) {
-      print('❌ 리포트 로드 실패: $e');
+      print('❌ Controller: 리포트 로드 실패 - $e');
       _setError('리포트를 불러올 수 없습니다: $e');
       _setLoading(false);
     }
   }
 
+  /// 첫 번째 영상이 있는 질문의 비디오를 초기화합니다
+  Future<void> _initializeFirstVideo() async {
+    if (_reportData?.questionAnswers == null) {
+      _setError('면접 데이터가 없습니다');
+      return;
+    }
+
+    // 영상이 있는 첫 번째 질문 찾기
+    final firstVideoIndex =
+        _reportService.findFirstQuestionWithVideo(_reportData!.questionAnswers);
+
+    if (firstVideoIndex == -1) {
+      _setError('답변 영상이 있는 질문이 없습니다');
+      return;
+    }
+
+    // 선택된 질문 인덱스 설정
+    _selectedQuestionIndex = firstVideoIndex;
+
+    // 비디오 초기화
+    final firstQuestion = _reportData!.questionAnswers![firstVideoIndex];
+    await _initializeVideo(firstQuestion.videoUrl);
+  }
+
   /// 비디오 플레이어 초기화
-  Future<void> _initializeVideoPlayer(String videoUrl) async {
+  Future<void> _initializeVideo(String videoUrl) async {
     try {
-      print('🎬 비디오 플레이어 초기화 시작');
-      print('🔗 비디오 URL: $videoUrl');
+      print('🎬 Controller: 비디오 초기화 시작');
 
-      _videoPlayerController = VideoPlayerController.networkUrl(
-        Uri.parse(videoUrl),
-      );
+      await _videoPlayerService.initializeVideoPlayer(videoUrl);
 
-      await _videoPlayerController!.initialize();
-      _isVideoInitialized = true;
-
-      print('✅ 비디오 플레이어 초기화 완료');
+      print('✅ Controller: 비디오 초기화 완료');
       notifyListeners();
     } catch (e) {
-      print('❌ 비디오 플레이어 초기화 실패: $e');
-      _isVideoInitialized = false;
-      _setError('비디오를 로드할 수 없습니다: $e');
+      print('❌ Controller: 비디오 초기화 실패 - $e');
+      _setError('비디오를 로드할 수 없습니다');
     }
   }
 
-  // 날짜 포맷팅 유틸리티 함수
-  String formatDate(dynamic timestamp) {
-    if (timestamp == null) return '날짜 정보 없음';
-
+  /// 질문 선택 - 다른 질문의 비디오로 전환
+  Future<void> selectQuestion(int questionIndex) async {
     try {
-      DateTime date;
-      if (timestamp is DateTime) {
-        date = timestamp;
-      } else {
-        // Firestore 타임스탬프 변환
-        date = (timestamp as Timestamp).toDate();
+      print('🎯 Controller: 질문 ${questionIndex + 1} 선택');
+
+      // 유효성 검사
+      if (_reportData?.questionAnswers == null ||
+          questionIndex >= _reportData!.questionAnswers!.length) {
+        print('❌ Controller: 잘못된 질문 인덱스 - $questionIndex');
+        return;
       }
 
-      return '${date.year}.${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')}';
+      final selectedQuestion = _reportData!.questionAnswers![questionIndex];
+
+      // 선택된 질문 인덱스 업데이트
+      _selectedQuestionIndex = questionIndex;
+      notifyListeners();
+
+      // 비디오 URL이 없으면 비디오 해제
+      if (selectedQuestion.videoUrl.isEmpty) {
+        print('📝 Controller: 질문 ${questionIndex + 1}에는 영상이 없음');
+        await _videoPlayerService.disposeVideoPlayer();
+        notifyListeners();
+        return;
+      }
+
+      // 같은 비디오면 무시
+      if (!_videoPlayerService.isVideoUrlChanged(selectedQuestion.videoUrl)) {
+        print('🔄 Controller: 동일한 비디오 - 변경 없음');
+        return;
+      }
+
+      // 새 비디오로 전환
+      await _initializeVideo(selectedQuestion.videoUrl);
+
+      print('✅ Controller: 질문 ${questionIndex + 1} 비디오 전환 완료');
     } catch (e) {
-      return '날짜 정보 오류';
+      print('❌ Controller: 질문 선택 중 오류 - $e');
+      _setError('비디오 전환 중 오류가 발생했습니다');
     }
+  }
+
+  /// 영상 시간 이동 (Duration 기반)
+  Future<void> seekToTime(Duration duration) async {
+    await _videoPlayerService.seekToTime(duration);
+  }
+
+  /// 영상 시간 이동 (초 단위)
+  Future<void> seekToTimeInSeconds(int seconds) async {
+    await _videoPlayerService.seekToTimeInSeconds(seconds);
   }
 
   /// 면접 완료 후 보고서 생성
-  ///
-  /// 면접이 완료된 후 면접 데이터를 기반으로 보고서를 생성합니다.
-  /// [interviewId]는 완료된 면접의 고유 식별자입니다.
-  /// [resumeId]는 면접에 사용된 이력서의 고유 식별자입니다.
-  /// [resumeData]는 면접에 사용된 이력서 데이터입니다.
   Future<String?> createInterviewReport(String interviewId, String resumeId,
       Map<String, dynamic> resumeData) async {
     try {
-      _isCreatingReport = true;
-      notifyListeners();
+      _setCreatingReport(true);
 
-      // Repository는 createReport 메소드가 없으므로 생략
-      // final report = await _reportRepository.createReport(
-      //   interviewId: interviewId,
-      //   resumeId: resumeId,
-      //   resumeData: resumeData,
-      // );
-      ReportModel? report;
+      final reportId = await _reportService.createInterviewReport(
+          interviewId, resumeId, resumeData);
 
-      // 리포트 목록을 새로고침
+      // 리포트 목록 새로고침
       await loadReportList();
 
-      _isCreatingReport = false;
-      notifyListeners();
-      return report?.id;
+      _setCreatingReport(false);
+      return reportId;
     } catch (e) {
-      _setError('면접 보고서 생성 중 오류가 발생했습니다: $e');
-      _isCreatingReport = false;
-      notifyListeners();
+      print('❌ Controller: 면접 보고서 생성 실패 - $e');
+      _setError('면접 보고서 생성 중 오류가 발생했습니다');
+      _setCreatingReport(false);
       return null;
     }
   }
 
   /// 보고서 상태 업데이트
-  ///
-  /// [reportId] 보고서의 상태를 [status]로 업데이트합니다.
   Future<bool> updateReportStatus(String reportId, String status) async {
     try {
       _setLoading(true);
-      final result =
-          await _reportRepository.updateReportStatus(reportId, status);
 
-      // 상태 업데이트가 성공하면 목록 새로고침
+      final result = await _reportService.updateReportStatus(reportId, status);
+
       if (result) {
         await loadReportList();
       }
@@ -248,141 +223,97 @@ class ReportController extends ChangeNotifier {
       _setLoading(false);
       return result;
     } catch (e) {
-      _setError('보고서 상태 업데이트 중 오류가 발생했습니다: $e');
+      print('❌ Controller: 보고서 상태 업데이트 실패 - $e');
+      _setError('보고서 상태 업데이트 중 오류가 발생했습니다');
       _setLoading(false);
       return false;
     }
   }
 
   /// 보고서 비디오 URL 업데이트
-  ///
-  /// [reportId] 보고서의 비디오 URL을 [videoUrl]로 업데이트합니다.
   Future<bool> updateReportVideoUrl(String reportId, String videoUrl) async {
     try {
       final result =
-          await _reportRepository.updateReportVideoUrl(reportId, videoUrl);
+          await _reportService.updateReportVideoUrl(reportId, videoUrl);
 
-      // 현재 로드된 보고서가 업데이트 대상과 같다면 비디오 플레이어 갱신
-      if (result && _reportData != null && _reportData!.id == reportId) {
-        // 보고서 데이터 새로 로드
+      // 현재 로드된 보고서가 업데이트 대상과 같다면 다시 로드
+      if (result && _reportData?.id == reportId) {
         await loadReport(reportId);
       }
 
       return result;
     } catch (e) {
-      _setError('보고서 비디오 URL 업데이트 중 오류가 발생했습니다: $e');
+      print('❌ Controller: 보고서 비디오 URL 업데이트 실패 - $e');
+      _setError('보고서 비디오 URL 업데이트 중 오류가 발생했습니다');
       return false;
     }
   }
 
   /// 보고서 삭제
-  ///
-  /// [reportId] 보고서를 삭제합니다.
   Future<bool> deleteReport(String reportId) async {
-    print('🗑️ 컨트롤러: 리포트 삭제 요청 - $reportId');
-
     try {
-      final result = await _reportRepository.deleteReport(reportId);
-      print('🗑️ 삭제 결과: $result');
+      print('🗑️ Controller: 리포트 삭제 요청 - $reportId');
 
-      // 삭제가 성공하면 목록 새로고침
+      final result = await _reportService.deleteReport(reportId);
+
       if (result) {
-        print('✅ 삭제 성공 - 목록 새로고침 중...');
+        print('✅ Controller: 삭제 성공 - 목록 새로고침');
         await loadReportList();
-        print('✅ 목록 새로고침 완료');
-      } else {
-        print('❌ 삭제 실패');
       }
 
       return result;
     } catch (e) {
-      print('❌ 삭제 중 예외 발생: $e');
+      print('❌ Controller: 리포트 삭제 실패 - $e');
       return false;
     }
   }
 
-  // 리포트 목록 새로고침
+  /// 리포트 목록 새로고침
   Future<void> refreshReportList() async {
     await loadReportList();
   }
 
-  /// 질문 선택 시 해당 질문의 비디오로 전환
-  Future<void> selectQuestion(int questionIndex) async {
-    try {
-      print('🎯 질문 ${questionIndex + 1} 선택됨');
-
-      if (_reportData?.questionAnswers == null ||
-          questionIndex >= _reportData!.questionAnswers!.length) {
-        print('❌ 잘못된 질문 인덱스: $questionIndex');
-        return;
-      }
-
-      final selectedQuestion = _reportData!.questionAnswers![questionIndex];
-      final newVideoUrl = selectedQuestion.videoUrl;
-
-      print('📹 새 비디오 URL: $newVideoUrl');
-      print('📹 현재 비디오 URL: $_currentVideoUrl');
-
-      // 상태 업데이트 (비디오 URL이 없어도 선택된 질문은 변경)
-      _selectedQuestionIndex = questionIndex;
-      notifyListeners();
-
-      // 비디오 URL이 비어있으면 기존 비디오 정리하고 메시지 표시
-      if (newVideoUrl.isEmpty) {
-        print('⚠️ 선택된 질문의 비디오 URL이 비어있습니다');
-
-        // 기존 비디오 컨트롤러 해제
-        _videoPlayerController?.dispose();
-        _videoPlayerController = null;
-        _isVideoInitialized = false;
-        _currentVideoUrl = '';
-
-        // 에러는 설정하지 않음 (정상적인 상황)
-        notifyListeners();
-        print('📝 질문 ${questionIndex + 1}: 답변 영상이 없는 정상 상태');
-        return;
-      }
-
-      // 같은 비디오면 무시
-      if (newVideoUrl == _currentVideoUrl) {
-        print('🔄 동일한 비디오 - 변경 없음');
-        return;
-      }
-
-      // 새 비디오로 전환
-      _currentVideoUrl = newVideoUrl;
-
-      // 기존 비디오 컨트롤러 해제
-      _videoPlayerController?.dispose();
-      _isVideoInitialized = false;
-      notifyListeners();
-
-      // 새 비디오 초기화
-      await _initializeVideoPlayer(newVideoUrl);
-
-      print('✅ 질문 ${questionIndex + 1} 비디오 전환 완료');
-    } catch (e) {
-      print('❌ 질문 선택 중 오류: $e');
-      _setError('비디오 전환 중 오류가 발생했습니다: $e');
-    }
+  /// 날짜 포맷팅 (서비스로 위임)
+  String formatDate(dynamic timestamp) {
+    return _reportService.formatDate(timestamp);
   }
 
-  // 로딩 상태 설정
+  /// 시간 포맷팅 (서비스로 위임)
+  String formatDuration(int seconds) {
+    return _reportService.formatDuration(seconds);
+  }
+
+  // === 상태 관리 헬퍼 메소드들 ===
+
   void _setLoading(bool loading) {
     _isLoading = loading;
     notifyListeners();
   }
 
-  // 오류 메시지 설정
+  void _setLoadingReports(bool loading) {
+    _isLoadingReports = loading;
+    notifyListeners();
+  }
+
+  void _setCreatingReport(bool creating) {
+    _isCreatingReport = creating;
+    notifyListeners();
+  }
+
   void _setError(String? errorMessage) {
     _error = errorMessage;
     notifyListeners();
   }
 
-  // 컨트롤러 리소스 해제
+  void _clearError() {
+    _error = null;
+  }
+
+  /// 컨트롤러 리소스 해제
   @override
   void dispose() {
-    _videoPlayerController?.dispose();
+    print('🗑️ Controller: 리소스 해제 시작');
+    _videoPlayerService.disposeVideoPlayer();
     super.dispose();
   }
 }
