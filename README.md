@@ -31,7 +31,7 @@
 - **OpenCV**: 영상 처리
 - **Ollama API**: Gemma 기반 질문 생성 및 답변 피드백
 - **Gtts**: Text to Speech API
-- **Whisper** Speech to Text API
+- **Whisper**: Speech to Text API
 
 ## 📁 프로젝트 구조
 
