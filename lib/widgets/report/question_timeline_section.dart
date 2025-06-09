@@ -52,9 +52,9 @@ class _QuestionTimelineSectionState extends State<QuestionTimelineSection> {
           if (qa.videoUrl.startsWith('http://') ||
               qa.videoUrl.startsWith('https://')) {
             print('✅ 일반 HTTP URL로 허용');
-            return true;
-          }
+          return true;
         }
+      }
       } else {
         print('❌ videoUrl이 비어있습니다');
       }
@@ -82,7 +82,7 @@ class _QuestionTimelineSectionState extends State<QuestionTimelineSection> {
           if (qa.videoUrl.contains('firebasestorage.googleapis.com') ||
               qa.videoUrl.contains('storage.googleapis.com')) {
             return 'Firebase Storage 영상을 불러올 수 없습니다.\n권한 설정을 확인해주세요.';
-          } else {
+        } else {
             return '외부 URL 영상을 불러올 수 없습니다.\n${qa.videoUrl.substring(0, 50)}...';
           }
         } else {
@@ -531,10 +531,10 @@ class _QuestionTimelineSectionState extends State<QuestionTimelineSection> {
 
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
+            decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.green.shade200),
+              border: Border.all(color: Colors.green.shade200),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.1),
@@ -542,13 +542,13 @@ class _QuestionTimelineSectionState extends State<QuestionTimelineSection> {
             offset: const Offset(0, 2),
           ),
         ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
           // 헤더
-          Row(
-            children: [
+                Row(
+                  children: [
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
@@ -556,22 +556,22 @@ class _QuestionTimelineSectionState extends State<QuestionTimelineSection> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
-                  Icons.accessibility_new,
-                  color: Colors.green.shade600,
-                  size: 20,
-                ),
+                      Icons.accessibility_new,
+                      color: Colors.green.shade600,
+                      size: 20,
+                    ),
               ),
               const SizedBox(width: 12),
-              Text(
-                '포즈 분석',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+                    Text(
+                      '포즈 분석',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
                   color: Colors.grey.shade800,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
           const SizedBox(height: 16),
 
           // 시간 정보가 있는 경우 시간 막대들 표시
@@ -614,7 +614,7 @@ class _QuestionTimelineSectionState extends State<QuestionTimelineSection> {
                       const SizedBox(width: 12),
 
                       // 시간 표시
-                      Container(
+          Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
@@ -658,10 +658,10 @@ class _QuestionTimelineSectionState extends State<QuestionTimelineSection> {
             Column(
               children: poseData['sections'].map<Widget>((section) {
                 return Container(
-                  width: double.infinity,
+            width: double.infinity,
                   margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
@@ -673,13 +673,13 @@ class _QuestionTimelineSectionState extends State<QuestionTimelineSection> {
                         offset: const Offset(0, 2),
                       ),
                     ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                       // 섹션 헤더
-                      Row(
-                        children: [
+                Row(
+                  children: [
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
@@ -706,14 +706,14 @@ class _QuestionTimelineSectionState extends State<QuestionTimelineSection> {
                               section['title'],
                               style: const TextStyle(
                                 fontSize: 12,
-                                fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.bold,
                                 color: Colors.white,
                               ),
-                            ),
-                          ),
-                        ],
                       ),
-                      const SizedBox(height: 12),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
 
                       // 섹션 내용
                       _buildSectionContent(
@@ -735,7 +735,7 @@ class _QuestionTimelineSectionState extends State<QuestionTimelineSection> {
               ),
               child: Text(
                 poseAnalysis,
-                style: TextStyle(
+                  style: TextStyle(
                   fontSize: 14,
                   height: 1.6,
                   color: Colors.grey.shade700,
@@ -906,9 +906,9 @@ class _QuestionTimelineSectionState extends State<QuestionTimelineSection> {
                       color: materialColor.shade800,
                       height: 1.4,
                     ),
-                  ),
-                ),
-              ],
+            ),
+          ),
+        ],
             ),
           );
         } else {
