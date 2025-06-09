@@ -29,23 +29,48 @@ class _QuestionTimelineSectionState extends State<QuestionTimelineSection> {
   /// 영상 존재 여부 체크 (Firebase Storage URL)
   bool _checkVideoAvailability(dynamic qa) {
     try {
+      print('🔍 영상 존재 여부 체크: ${qa.videoUrl}');
+
       // Firebase Storage URL 체크
       if (qa.videoUrl != null && qa.videoUrl.isNotEmpty) {
-        // 유효한 Firebase Storage URL인지 확인
-        if (qa.videoUrl.startsWith('https://firebasestorage.googleapis.com/')) {
+        print('📹 videoUrl이 존재: ${qa.videoUrl}');
+
+        // Firebase Storage URL 패턴들 확인 (더 유연한 체크)
+        final isFirebaseStorage =
+            qa.videoUrl.startsWith('https://firebasestorage.googleapis.com/') ||
+                qa.videoUrl.startsWith('https://storage.googleapis.com/') ||
+                qa.videoUrl.contains('firebasestorage') ||
+                qa.videoUrl.contains('storage.googleapis.com');
+
+        if (isFirebaseStorage) {
+          print('✅ Firebase Storage URL 확인됨');
           return true;
+        } else {
+          print(
+              '⚠️ Firebase Storage URL이 아닙니다: ${qa.videoUrl.substring(0, 100)}...');
+          // 다른 유효한 HTTP URL이면 허용
+          if (qa.videoUrl.startsWith('http://') ||
+              qa.videoUrl.startsWith('https://')) {
+            print('✅ 일반 HTTP URL로 허용');
+            return true;
+          }
         }
+      } else {
+        print('❌ videoUrl이 비어있습니다');
       }
+
       return false;
     } catch (e) {
-      print('영상 존재 여부 체크 실패: $e');
+      print('❌ 영상 존재 여부 체크 실패: $e');
       return false;
     }
   }
 
-  /// 영상 없을 때 메시지 생성
+  /// 영상이 있을 때 메시지 생성
   String _getNoVideoMessage(dynamic qa) {
     try {
+      print('🔍 영상 없음 메시지 생성: ${qa.videoUrl}');
+
       if (qa.videoUrl != null && qa.videoUrl.isNotEmpty) {
         if (qa.videoUrl.startsWith('blob:')) {
           return '이전 방식(blob URL)으로 저장된 영상입니다.\n새로운 면접을 진행해주세요.';
@@ -53,14 +78,21 @@ class _QuestionTimelineSectionState extends State<QuestionTimelineSection> {
             qa.videoUrl.contains('localStorage')) {
           return '이전 방식(로컬 저장)으로 저장된 영상입니다.\n새로운 면접을 진행해주세요.';
         } else if (qa.videoUrl.startsWith('http')) {
-          return 'Firebase Storage 영상을 불러올 수 없습니다.';
+          // Firebase Storage URL 상세 체크
+          if (qa.videoUrl.contains('firebasestorage.googleapis.com') ||
+              qa.videoUrl.contains('storage.googleapis.com')) {
+            return 'Firebase Storage 영상을 불러올 수 없습니다.\n권한 설정을 확인해주세요.';
+          } else {
+            return '외부 URL 영상을 불러올 수 없습니다.\n${qa.videoUrl.substring(0, 50)}...';
+          }
         } else {
-          return '유효하지 않은 영상 경로입니다.';
+          return '유효하지 않은 영상 경로입니다.\n형식: ${qa.videoUrl.substring(0, 30)}...';
         }
       } else {
         return '이 질문에는 답변 영상이 없습니다.';
       }
     } catch (e) {
+      print('❌ 영상 없음 메시지 생성 실패: $e');
       return '영상 상태를 확인할 수 없습니다.';
     }
   }
@@ -315,12 +347,6 @@ class _QuestionTimelineSectionState extends State<QuestionTimelineSection> {
               // 점수 배지
               _buildScoreBadge(qa.score),
               const SizedBox(width: 8),
-              // 시간 배지 (영상이 있는 경우만) - 클릭하여 해당 시간으로 이동
-              if (hasVideo)
-                Tooltip(
-                  message: '클릭하여 질문 시작 시간으로 이동',
-                  child: _buildTimeBadge(qa.answerDuration, index),
-                ),
             ],
           ),
           const SizedBox(height: 6),
@@ -394,37 +420,6 @@ class _QuestionTimelineSectionState extends State<QuestionTimelineSection> {
     );
   }
 
-  /// 시간 배지 - 단순 정보 표시용
-  Widget _buildTimeBadge(int duration, [int? targetQuestionIndex]) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.blue.shade100,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: Colors.blue.shade300),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.access_time,
-            size: 12,
-            color: Colors.blue.shade700,
-          ),
-          const SizedBox(width: 4),
-          Text(
-            _formatTime(duration),
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.blue.shade700,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   /// 질문 아이콘
   Widget _buildExpandIcon(bool hasVideo, bool isExpanded) {
     return Icon(
@@ -442,13 +437,6 @@ class _QuestionTimelineSectionState extends State<QuestionTimelineSection> {
     return Colors.red;
   }
 
-  /// 시간 포맷팅
-  String _formatTime(int seconds) {
-    final minutes = seconds ~/ 60;
-    final remainingSeconds = seconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
-  }
-
   /// 펼쳐지는 내용 (영상 + 피드백)
   Widget _buildExpandedContent(int originalIndex, dynamic qa, bool hasVideo) {
     return Container(
@@ -462,50 +450,6 @@ class _QuestionTimelineSectionState extends State<QuestionTimelineSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 질문 텍스트
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            margin: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.quiz,
-                      color: Colors.deepPurple.shade600,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '질문 ${originalIndex + 1}',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.deepPurple.shade700,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  qa.question,
-                  style: const TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w500,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
           // 영상 플레이어 (영상이 있는 경우)
           if (hasVideo) ...[
             Container(
@@ -548,9 +492,6 @@ class _QuestionTimelineSectionState extends State<QuestionTimelineSection> {
         Row(
           children: [
             _buildStatCard('점수', '${qa.score}점', _getScoreColor(qa.score)),
-            const SizedBox(width: 12),
-            _buildStatCard(
-                '답변 시간', _formatTime(qa.answerDuration), Colors.blue),
           ],
         ),
         const SizedBox(height: 16),
@@ -603,88 +544,419 @@ class _QuestionTimelineSectionState extends State<QuestionTimelineSection> {
 
         // 2. 포즈 분석 (있는 경우)
         if (qa.poseAnalysis != null && qa.poseAnalysis!.isNotEmpty) ...[
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.green.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.green.shade200),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.accessibility_new,
-                      color: Colors.green.shade600,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '포즈 분석',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green.shade700,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _buildPoseAnalysisTimeSummary(qa.poseAnalysis),
-              ],
-            ),
-          ),
+          _buildStructuredPoseAnalysis(qa.poseAnalysis!),
           const SizedBox(height: 16),
         ],
 
-        // 3. AI 평가 및 피드백
+        // 3. AI 평가 및 피드백 - 구조화된 형태로 개선
         if (qa.evaluation.isNotEmpty) ...[
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.blue.shade200),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.psychology,
-                      color: Colors.blue.shade600,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'AI 평가',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue.shade700,
-                      ),
-                    ),
-                  ],
+          _buildStructuredEvaluation(qa.evaluation),
+        ],
+      ],
+    );
+  }
+
+  /// 구조화된 포즈 분석을 표시하는 위젯
+  Widget _buildStructuredPoseAnalysis(String poseAnalysis) {
+    // 포즈 분석 텍스트를 파싱하여 시간 정보와 내용 분리
+    final poseData = _parsePoseAnalysisText(poseAnalysis);
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.green.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 헤더
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  qa.evaluation,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.blue.shade800,
-                    height: 1.5,
+                child: Icon(
+                  Icons.accessibility_new,
+                  color: Colors.green.shade600,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                '포즈 분석',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // 시간 정보가 있는 경우 시간 막대들 표시
+          if (poseData['timePoints'] != null &&
+              poseData['timePoints'].isNotEmpty) ...[
+            Column(
+              children: poseData['timePoints'].map<Widget>((timePoint) {
+                return Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border:
+                        Border.all(color: Colors.orange.shade300, width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      // 시간 아이콘
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.access_time,
+                          color: Colors.orange.shade600,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+
+                      // 시간 표시
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade600,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Text(
+                          timePoint['time'],
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+
+                      // 시간 설명
+                      Expanded(
+                        child: Text(
+                          timePoint['description'],
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade600,
+                            height: 1.4,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+
+          // 구조화된 섹션들 표시
+          if (poseData['sections'] != null &&
+              poseData['sections'].isNotEmpty) ...[
+            Column(
+              children: poseData['sections'].map<Widget>((section) {
+                return Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: section['color'].shade300, width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 섹션 헤더
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: section['color'].shade50,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              section['icon'],
+                              color: section['color'].shade600,
+                              size: 18,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+
+                          // 섹션 제목 배지
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: section['color'].shade600,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Text(
+                              section['title'],
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+
+                      // 섹션 내용
+                      _buildSectionContent(
+                          section['content'], section['color']),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ] else ...[
+            // 일반 포즈 분석 내용 (구조화된 섹션이 없는 경우)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Text(
+                poseAnalysis,
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.6,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// 포즈 분석 텍스트를 파싱하여 구조화된 데이터로 변환
+  Map<String, dynamic> _parsePoseAnalysisText(String? poseAnalysis) {
+    final result = <String, dynamic>{
+      'sections': <Map<String, dynamic>>[],
+      'generalInfo': <String>[],
+      'timePoints': <Map<String, String>>[],
+    };
+
+    // null이나 빈 문자열인 경우 빈 결과 반환
+    if (poseAnalysis == null || poseAnalysis.isEmpty) {
+      return result;
+    }
+
+    try {
+      // 섹션 구분 패턴 ([시선 분석], [총 영상 길이] 등)
+      final RegExp sectionPattern = RegExp(r'\[([^\]]+)\]');
+      final sections = <Map<String, dynamic>>[];
+
+      // 텍스트를 줄 단위로 분리
+      final lines = poseAnalysis
+          .split('\n')
+          .map((line) => line.trim())
+          .where((line) => line.isNotEmpty)
+          .toList();
+
+      String? currentSection;
+      List<String> currentContent = [];
+
+      for (final line in lines) {
+        final sectionMatch = sectionPattern.firstMatch(line);
+
+        if (sectionMatch != null) {
+          // 이전 섹션 저장
+          if (currentSection != null && currentContent.isNotEmpty) {
+            sections.add({
+              'title': currentSection,
+              'content': currentContent.join('\n'),
+              'icon': _getSectionIcon(currentSection),
+              'color': _getSectionColor(currentSection),
+            });
+          }
+
+          // 새 섹션 시작
+          currentSection = sectionMatch.group(1);
+          currentContent = [];
+        } else {
+          // 현재 섹션의 내용 추가
+          if (currentSection != null) {
+            currentContent.add(line);
+          } else {
+            // 섹션이 없는 일반 정보
+            result['generalInfo'].add(line);
+          }
+        }
+      }
+
+      // 마지막 섹션 저장
+      if (currentSection != null && currentContent.isNotEmpty) {
+        sections.add({
+          'title': currentSection,
+          'content': currentContent.join('\n'),
+          'icon': _getSectionIcon(currentSection),
+          'color': _getSectionColor(currentSection),
+        });
+      }
+
+      result['sections'] = sections;
+    } catch (e) {
+      print('포즈 분석 텍스트 파싱 중 오류: $e');
+      // 파싱 실패 시 원본 텍스트를 일반 정보로 저장
+      result['generalInfo'] = [poseAnalysis];
+    }
+
+    return result;
+  }
+
+  /// 섹션 제목에 따른 아이콘 반환
+  IconData _getSectionIcon(String sectionTitle) {
+    switch (sectionTitle.toLowerCase()) {
+      case '시선 분석':
+        return Icons.visibility;
+      case '총 영상 길이':
+        return Icons.timer;
+      case '포즈 분석':
+        return Icons.accessibility_new;
+      case '자세 분석':
+        return Icons.person;
+      case '움직임 분석':
+        return Icons.directions_walk;
+      default:
+        return Icons.analytics;
+    }
+  }
+
+  /// 섹션 제목에 따른 색상 반환
+  Color _getSectionColor(String sectionTitle) {
+    switch (sectionTitle.toLowerCase()) {
+      case '시선 분석':
+        return Colors.blue;
+      case '총 영상 길이':
+        return Colors.purple;
+      case '포즈 분석':
+        return Colors.green;
+      case '자세 분석':
+        return Colors.orange;
+      case '움직임 분석':
+        return Colors.teal;
+      default:
+        return Colors.indigo;
+    }
+  }
+
+  /// 섹션 내용을 구조화하여 표시
+  Widget _buildSectionContent(String? content, Color sectionColor) {
+    if (content == null || content.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final lines =
+        content.split('\n').where((line) => line.trim().isNotEmpty).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: lines.map((line) {
+        // 숫자나 통계가 포함된 라인인지 확인
+        final hasStats = RegExp(r'\d+\.?\d*\s*(프레임|초|%|\()').hasMatch(line);
+
+        if (hasStats) {
+          // MaterialColor로 캐스팅하여 shade 접근
+          final MaterialColor materialColor =
+              sectionColor is MaterialColor ? sectionColor : Colors.blue; // 기본값
+
+          return Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: materialColor.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: materialColor.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.bar_chart,
+                  color: materialColor.shade600,
+                  size: 16,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    line,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: materialColor.shade800,
+                      height: 1.4,
+                    ),
                   ),
                 ),
               ],
             ),
-          ),
-        ],
-      ],
+          );
+        } else {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              line,
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey.shade600,
+                height: 1.4,
+              ),
+            ),
+          );
+        }
+      }).toList(),
     );
   }
 
@@ -835,11 +1107,20 @@ class _QuestionTimelineSectionState extends State<QuestionTimelineSection> {
     Color backgroundColor = Colors.grey.shade100;
     Color borderColor = Colors.grey.shade300;
 
+    // Firebase 관련 문제인지 확인
+    bool isFirebaseIssue =
+        message.contains('Firebase') || message.contains('권한');
+
     if (message.contains('이전 방식') || message.contains('새로운 면접')) {
       icon = Icons.update;
       iconColor = Colors.orange.shade500;
       backgroundColor = Colors.orange.shade50;
       borderColor = Colors.orange.shade300;
+    } else if (isFirebaseIssue) {
+      icon = Icons.cloud_off;
+      iconColor = Colors.red.shade500;
+      backgroundColor = Colors.red.shade50;
+      borderColor = Colors.red.shade300;
     } else if (message.contains('Firebase') || message.contains('삭제')) {
       icon = Icons.cloud_off;
       iconColor = Colors.red.shade500;
@@ -878,9 +1159,699 @@ class _QuestionTimelineSectionState extends State<QuestionTimelineSection> {
                 textAlign: TextAlign.center,
               ),
             ),
+
+            // Firebase 권한 문제인 경우 추가 안내
+            if (isFirebaseIssue) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          color: Colors.blue.shade600,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '해결 방법',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '1. Firebase Console에서 Storage 규칙 확인\n'
+                      '2. 브라우저 개발자 도구에서 에러 확인\n'
+                      '3. 네트워크 연결 상태 확인',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.blue.shade600,
+                        height: 1.3,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  /// 구조화된 평가 내용을 표시하는 위젯
+  Widget _buildStructuredEvaluation(String evaluationText) {
+    final evaluationData = _parseEvaluationText(evaluationText);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 평가 항목들을 Grid 형태로 배치
+        if (evaluationData['categories'].isNotEmpty) ...[
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.shade200),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.analytics,
+                        color: Colors.blue.shade600,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      '상세 평가 항목',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade800,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // 세로로 나열된 가로 막대들
+                Column(
+                  children: evaluationData['categories']
+                      .asMap()
+                      .entries
+                      .map<Widget>((entry) {
+                    final index = entry.key;
+                    final category = entry.value;
+                    return Container(
+                      margin: EdgeInsets.only(
+                        bottom: index < evaluationData['categories'].length - 1
+                            ? 12
+                            : 0,
+                      ),
+                      child: _buildEvaluationBar(category['name'],
+                          category['rating'], category['comment']),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // 총점 및 등급 표시
+          if (evaluationData['totalScore'] != null ||
+              evaluationData['grade'] != null) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.purple.shade200),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.purple.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.emoji_events,
+                          color: Colors.purple.shade600,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        '종합 평가 결과',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey.shade800,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      if (evaluationData['totalScore'] != null)
+                        Column(
+                          children: [
+                            Container(
+                              width: 80,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                color: Colors.purple.shade50,
+                                borderRadius: BorderRadius.circular(40),
+                                border: Border.all(
+                                  color: Colors.purple.shade200,
+                                  width: 2,
+                                ),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '${evaluationData['totalScore']}',
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.purple.shade700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              '총점',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey.shade600,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      if (evaluationData['grade'] != null)
+                        Column(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 20, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(25),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Text(
+                                evaluationData['grade'],
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.purple.shade700,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              '등급',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey.shade600,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          // 추천 답변 표시
+          if (evaluationData['recommendedAnswer'] != null) ...[
+            const SizedBox(height: 20),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.amber.shade300, width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.shade200,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.lightbulb_rounded,
+                          color: Colors.amber.shade700,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          '💡 추천 답변',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey.shade800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.amber.shade200),
+                    ),
+                    child: Text(
+                      evaluationData['recommendedAnswer'],
+                      style: TextStyle(
+                        fontSize: 14,
+                        height: 1.6,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ] else ...[
+          // 파싱되지 않은 경우 기본 텍스트 표시
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.blue.shade200),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.psychology,
+                      color: Colors.blue.shade600,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'AI 평가',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  evaluationText,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    height: 1.6,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// 가로 막대 형태의 평가 항목 위젯
+  Widget _buildEvaluationBar(
+      String categoryName, String rating, String comment) {
+    Color accentColor;
+    IconData iconData;
+
+    switch (rating.toLowerCase()) {
+      case '높음':
+      case '매우 높음':
+        accentColor = Colors.green.shade600;
+        iconData = Icons.check_circle_rounded;
+        break;
+      case '보통':
+        accentColor = Colors.orange.shade600;
+        iconData = Icons.info_rounded;
+        break;
+      case '낮음':
+      case '매우 낮음':
+        accentColor = Colors.red.shade600;
+        iconData = Icons.warning_rounded;
+        break;
+      default:
+        accentColor = Colors.grey.shade600;
+        iconData = Icons.help_rounded;
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accentColor.withOpacity(0.3), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // 아이콘과 카테고리명
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: accentColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              iconData,
+              color: accentColor,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: Text(
+              _getCategoryDisplayName(categoryName),
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade800,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          // 등급 배지
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: accentColor,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Text(
+              rating,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          // 코멘트
+          Expanded(
+            flex: 3,
+            child: Text(
+              comment,
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey.shade600,
+                height: 1.4,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 개별 평가 항목 카드 위젯
+  Widget _buildEvaluationCard(
+      String categoryName, String rating, String comment) {
+    Color accentColor;
+    IconData iconData;
+
+    switch (rating.toLowerCase()) {
+      case '높음':
+      case '매우 높음':
+        accentColor = Colors.green.shade600;
+        iconData = Icons.check_circle_rounded;
+        break;
+      case '보통':
+        accentColor = Colors.orange.shade600;
+        iconData = Icons.info_rounded;
+        break;
+      case '낮음':
+      case '매우 낮음':
+        accentColor = Colors.red.shade600;
+        iconData = Icons.warning_rounded;
+        break;
+      default:
+        accentColor = Colors.grey.shade600;
+        iconData = Icons.help_rounded;
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accentColor.withOpacity(0.3), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 카테고리 이름과 아이콘
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: accentColor.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Icon(
+                    iconData,
+                    color: accentColor,
+                    size: 14,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    _getCategoryDisplayName(categoryName),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade800,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+
+            // 등급 표시
+            Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: accentColor,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  rating,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 6),
+
+            // 코멘트 (더 간단하게)
+            Text(
+              comment.length > 30 ? '${comment.substring(0, 27)}...' : comment,
+              style: TextStyle(
+                fontSize: 9,
+                height: 1.3,
+                color: Colors.grey.shade600,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 평가 카테고리 이름을 한국어로 변환
+  String _getCategoryDisplayName(String categoryName) {
+    switch (categoryName.toLowerCase()) {
+      case 'relevance':
+        return '관련성';
+      case 'completeness':
+        return '완성도';
+      case 'correctness':
+        return '정확성';
+      case 'clarity':
+        return '명확성';
+      case 'professionalism':
+        return '전문성';
+      default:
+        return categoryName;
+    }
+  }
+
+  /// 평가 텍스트를 파싱하여 구조화된 데이터로 변환
+  Map<String, dynamic> _parseEvaluationText(String evaluationText) {
+    final result = <String, dynamic>{
+      'categories': <Map<String, String>>[],
+      'totalScore': null,
+      'grade': null,
+      'recommendedAnswer': null,
+    };
+
+    try {
+      final lines = evaluationText.split('\n');
+
+      for (int i = 0; i < lines.length; i++) {
+        final line = lines[i].trim();
+
+        // 평가 항목 파싱 (예: "relevance: 높음 - 설명...")
+        if (line.contains(':') && line.contains('-')) {
+          final parts = line.split(':');
+          if (parts.length >= 2) {
+            final categoryName = parts[0].trim();
+            final remaining = parts.sublist(1).join(':').trim();
+            final dashIndex = remaining.indexOf('-');
+
+            if (dashIndex > 0) {
+              final rating = remaining.substring(0, dashIndex).trim();
+              final comment = remaining.substring(dashIndex + 1).trim();
+
+              result['categories'].add({
+                'name': categoryName,
+                'rating': rating,
+                'comment': comment,
+              });
+            }
+          }
+        }
+
+        // 총점 파싱
+        if (line.contains('총점:') || line.contains('점수:')) {
+          final scoreMatch = RegExp(r'(\d+)점').firstMatch(line);
+          if (scoreMatch != null) {
+            result['totalScore'] = scoreMatch.group(1);
+          }
+        }
+
+        // 등급 파싱
+        if (line.contains('등급:')) {
+          final gradeMatch =
+              RegExp(r'등급:\s*([A-F][+-]?\s*(?:\([^)]+\))?)').firstMatch(line);
+          if (gradeMatch != null) {
+            result['grade'] = gradeMatch.group(1)?.trim();
+          }
+        }
+
+        // 추천 답변 파싱
+        if (line.contains('추천 답변:')) {
+          final recommendedLines = <String>[];
+          for (int j = i + 1; j < lines.length; j++) {
+            final nextLine = lines[j].trim();
+            if (nextLine.isEmpty ||
+                nextLine.startsWith('답변 시간:') ||
+                nextLine.startsWith('침묵 시간:') ||
+                nextLine.startsWith('=')) {
+              break;
+            }
+            recommendedLines.add(nextLine);
+          }
+          if (recommendedLines.isNotEmpty) {
+            result['recommendedAnswer'] = recommendedLines.join(' ').trim();
+          }
+        }
+      }
+    } catch (e) {
+      print('평가 텍스트 파싱 중 오류: $e');
+    }
+
+    return result;
   }
 }

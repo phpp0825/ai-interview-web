@@ -21,6 +21,7 @@ def evaluate_and_save_responses(
     Evaluate user responses using an LLM and save structured results to a TXT file.
     빈 답변 및 '그만하겠습니다' 트리거를 건너뛰고,
     모든 출력은 한국어로만 제공하도록 프롬프트를 조정합니다.
+    각 평가 항목에 대해 점수를 계산하여 총점을 제공합니다.
     """
     llm_config = LlamaConfig()
     llm_client = LLMClient(llm_config)
@@ -57,7 +58,8 @@ def evaluate_and_save_responses(
                 },
                 "recommended_answer": "",
                 "total_response_time": total_time,
-                "silence_duration":    silence
+                "silence_duration":    silence,
+                "total_score": 0  # 빈 답변은 0점
             })
             continue
 
@@ -108,6 +110,10 @@ def evaluate_and_save_responses(
             }
             rec_answer = "AI 분석 오류로 추천 답변을 제공할 수 없습니다."
 
+        # === 점수 계산 추가 ===
+        total_score = calculate_score_from_evaluation(eval_obj)
+        print(f"📊 계산된 점수: {total_score}점")
+
         # 5) 오디오 지표 계산
         try:
             # STT 결과에서 침묵 시간 계산 (단어 타임스탬프 필요)
@@ -132,7 +138,8 @@ def evaluate_and_save_responses(
             "evaluation": eval_obj,
             "recommended_answer": rec_answer,
             "total_response_time": total_time,
-            "silence_duration": silence
+            "silence_duration": silence,
+            "total_score": total_score  # 총점 추가
         })
 
     # 6) 파일로 출력
@@ -147,6 +154,7 @@ def evaluate_and_save_responses(
                 recommended_answer = item.get('recommended_answer', '추천 답변 없음')
                 total_time = item.get('total_response_time', 0)
                 silence = item.get('silence_duration', 0)
+                total_score = item.get('total_score', 0)  # 총점 가져오기
                 
                 f.write(f"질문 {i}:\n{question}\n\n")
                 f.write(f"사용자 답변:\n{user_answer}\n\n")
@@ -174,6 +182,23 @@ def evaluate_and_save_responses(
                     f.write(f"  평가 데이터 전체 처리 오류: {str(e)}\n")
                 
                 f.write("\n")
+                f.write(f"총점: {total_score}점\n")  # 총점 표시 추가
+                
+                # 점수에 따른 등급 표시
+                if total_score >= 90:
+                    grade = "A+ (우수)"
+                elif total_score >= 85:
+                    grade = "A (좋음)"
+                elif total_score >= 80:
+                    grade = "B+ (양호)"
+                elif total_score >= 75:
+                    grade = "B (보통)"
+                elif total_score >= 70:
+                    grade = "C+ (개선 필요)"
+                else:
+                    grade = "C (미흡)"
+                
+                f.write(f"등급: {grade}\n\n")
                 f.write(f"추천 답변:\n{recommended_answer}\n\n")
                 f.write(f"답변 시간: {total_time} 초\n")
                 f.write(f"침묵 시간: {silence} 초\n")
@@ -196,3 +221,49 @@ def evaluate_and_save_responses(
 
     # 7) GUI/다른 호출자를 위해 평가 결과 반환
     return evaluations
+
+def calculate_score_from_evaluation(evaluation_obj):
+    """
+    평가 결과에서 숫자 점수를 계산합니다.
+    각 평가 항목의 rating을 점수로 변환하여 총점을 계산합니다.
+    """
+    try:
+        if not isinstance(evaluation_obj, dict):
+            return 0
+        
+        # 각 평가 항목별 점수 매핑
+        rating_scores = {
+            "높음": 20,     # 우수한 평가
+            "보통": 15,     # 평균적인 평가  
+            "낮음": 10,     # 부족한 평가
+            "분석불가": 5   # 분석 오류
+        }
+        
+        total_score = 0
+        evaluated_items = 0
+        
+        # 5개 평가 항목 점수 계산
+        evaluation_criteria = ["relevance", "completeness", "correctness", "clarity", "professionalism"]
+        
+        for criterion in evaluation_criteria:
+            if criterion in evaluation_obj:
+                criterion_data = evaluation_obj[criterion]
+                if isinstance(criterion_data, dict):
+                    rating = criterion_data.get('rating', '낮음')
+                    score = rating_scores.get(rating, 10)  # 기본값 10점
+                    total_score += score
+                    evaluated_items += 1
+                    print(f"  - {criterion}: {rating} ({score}점)")
+        
+        # 평균을 내어 100점 만점으로 변환
+        if evaluated_items > 0:
+            # 각 항목이 20점씩이므로 총 100점 만점
+            final_score = min(100, total_score)  # 최대 100점으로 제한
+        else:
+            final_score = 0
+            
+        return final_score
+        
+    except Exception as e:
+        print(f"⚠️ 점수 계산 중 오류: {e}")
+        return 0

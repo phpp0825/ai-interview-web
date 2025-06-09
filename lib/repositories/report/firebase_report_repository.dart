@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -478,11 +479,31 @@ class FirebaseReportRepository implements IReportRepository {
         // 평가 결과에서 피드백과 점수 추출 시도
         updateData['feedback'] = evaluationResult; // 전체 평가 결과를 피드백으로 사용
 
-        // 간단한 점수 추출 (예: "총점: 85점" 패턴 찾기)
-        final scorePattern = RegExp(r'(\d+)\s*점');
-        final scoreMatch = scorePattern.firstMatch(evaluationResult);
-        if (scoreMatch != null) {
-          final score = int.tryParse(scoreMatch.group(1) ?? '0') ?? 0;
+        // 평가 결과에서 점수 추출 (다양한 패턴 지원)
+        print(
+            '🔍 전체 피드백 점수 추출 시도: ${evaluationResult.substring(0, min(200, evaluationResult.length))}...');
+
+        final scorePatterns = [
+          RegExp(r'총점:\s*(\d+)\s*점'), // "총점: 85점"
+          RegExp(r'점수:\s*(\d+)\s*점'), // "점수: 85점"
+          RegExp(r'(\d+)\s*점'), // "85점"
+          RegExp(r'총점:\s*(\d+)'), // "총점: 85"
+          RegExp(r'점수:\s*(\d+)'), // "점수: 85"
+          RegExp(r'Score:\s*(\d+)'), // "Score: 85" (영어)
+        ];
+
+        int score = 0;
+        for (int i = 0; i < scorePatterns.length; i++) {
+          final pattern = scorePatterns[i];
+          final match = pattern.firstMatch(evaluationResult);
+          if (match != null) {
+            score = int.tryParse(match.group(1) ?? '0') ?? 0;
+            print('✅ 전체 피드백 점수 추출 성공 (패턴 ${i + 1}): $score점');
+            break;
+          }
+        }
+
+        if (score > 0) {
           updateData['score'] = score;
 
           // 점수에 따른 등급 계산
@@ -499,6 +520,8 @@ class FirebaseReportRepository implements IReportRepository {
 
           updateData['grade'] = grade;
           print('📊 점수 추출됨: $score점 ($grade)');
+        } else {
+          print('⚠️ 전체 피드백 점수 추출 실패: 패턴이 매칭되지 않음');
         }
 
         // 기존 questionAnswers 보존 (videoUrls 배열은 더 이상 사용하지 않음)
@@ -561,21 +584,33 @@ class FirebaseReportRepository implements IReportRepository {
       List<Map<String, dynamic>> questionAnswers =
           List<Map<String, dynamic>>.from(data['questionAnswers'] ?? []);
 
-      // 평가 결과에서 점수 추출
+      // 평가 결과에서 점수 추출 (다양한 패턴 지원)
       int score = 0;
       if (evaluationResult != null && evaluationResult.isNotEmpty) {
+        print(
+            '🔍 점수 추출 시도: ${evaluationResult.substring(0, min(200, evaluationResult.length))}...');
+
         final scorePatterns = [
-          RegExp(r'(\d+)\s*점'),
-          RegExp(r'점수:\s*(\d+)'),
-          RegExp(r'총점:\s*(\d+)'),
+          RegExp(r'총점:\s*(\d+)\s*점'), // "총점: 85점"
+          RegExp(r'점수:\s*(\d+)\s*점'), // "점수: 85점"
+          RegExp(r'(\d+)\s*점'), // "85점"
+          RegExp(r'총점:\s*(\d+)'), // "총점: 85"
+          RegExp(r'점수:\s*(\d+)'), // "점수: 85"
+          RegExp(r'Score:\s*(\d+)'), // "Score: 85" (영어)
         ];
 
-        for (final pattern in scorePatterns) {
+        for (int i = 0; i < scorePatterns.length; i++) {
+          final pattern = scorePatterns[i];
           final match = pattern.firstMatch(evaluationResult);
           if (match != null) {
             score = int.tryParse(match.group(1) ?? '0') ?? 0;
+            print('✅ 점수 추출 성공 (패턴 ${i + 1}): $score점');
             break;
           }
+        }
+
+        if (score == 0) {
+          print('⚠️ 점수 추출 실패: 패턴이 매칭되지 않음');
         }
       }
 

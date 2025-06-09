@@ -158,7 +158,6 @@ class _ReportListViewContentState extends State<_ReportListViewContent> {
       itemBuilder: (context, index) {
         final report = controller.reportList[index];
         final statusColor = _getStatusColor(report['status'] as String);
-        final score = report['score'] as int;
 
         return Card(
           margin: const EdgeInsets.only(bottom: 16),
@@ -239,30 +238,6 @@ class _ReportListViewContentState extends State<_ReportListViewContent> {
                           ],
                         ),
                       ),
-                      // 점수 표시
-                      if (report['status'] == 'completed')
-                        Container(
-                          width: 60,
-                          height: 60,
-                          decoration: BoxDecoration(
-                            color: _getScoreColor(score).withOpacity(0.1),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: _getScoreColor(score),
-                              width: 2,
-                            ),
-                          ),
-                          child: Center(
-                            child: Text(
-                              '$score',
-                              style: TextStyle(
-                                color: _getScoreColor(score),
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -382,14 +357,6 @@ class _ReportListViewContentState extends State<_ReportListViewContent> {
       default:
         return '완료'; // 기본적으로 완료 상태로 처리
     }
-  }
-
-  // 점수에 따른 색상
-  Color _getScoreColor(int score) {
-    if (score >= 80) return Colors.green;
-    if (score >= 60) return Colors.blue;
-    if (score >= 40) return Colors.orange;
-    return Colors.red;
   }
 
   void _handleDelete(
