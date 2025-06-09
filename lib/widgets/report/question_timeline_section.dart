@@ -344,9 +344,6 @@ class _QuestionTimelineSectionState extends State<QuestionTimelineSection> {
                 _buildVideoBadge(),
                 const SizedBox(width: 8),
               ],
-              // 점수 배지
-              _buildScoreBadge(qa.score),
-              const SizedBox(width: 8),
             ],
           ),
           const SizedBox(height: 6),
@@ -393,29 +390,6 @@ class _QuestionTimelineSectionState extends State<QuestionTimelineSection> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  /// 점수 배지
-  Widget _buildScoreBadge(int score) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: _getScoreColor(score).withOpacity(0.1),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(
-          color: _getScoreColor(score),
-          width: 1,
-        ),
-      ),
-      child: Text(
-        '${score}점',
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          color: _getScoreColor(score),
-        ),
       ),
     );
   }
@@ -488,13 +462,7 @@ class _QuestionTimelineSectionState extends State<QuestionTimelineSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 답변 통계
-        Row(
-          children: [
-            _buildStatCard('점수', '${qa.score}점', _getScoreColor(qa.score)),
-          ],
-        ),
-        const SizedBox(height: 16),
+        // 답변 통계 섹션 제거됨
 
         // 1. 답변 내용 (있는 경우)
         if (qa.answer.isNotEmpty) ...[
