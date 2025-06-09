@@ -55,6 +55,10 @@ ai-interview-web/
 │   │   ├── interview/
 │   │   ├── report/
 │   │   └── resume/
+│   ├── interviewApp/        # 모의 면접 관련 모듈 API
+│   │   ├── interview_app/
+│   │   ├── unified_api2.py/      # 통합 API
+│   │   └── pose_detection.py/    # 자세 분석 모듈
 │   ├── controllers/        # 상태 관리
 │   ├── models/            # 데이터 모델
 │   ├── repositories/      # 데이터 레포지토리
