@@ -298,8 +298,8 @@ async def evaluate_interview(
                 print(f"📹 {i+1}번째 URL 처리: {video_url}")
                 
                 try:
-                    # URL에서 영상 다운로드
-                    response = requests.get(video_url, timeout=30)
+                    # URL에서 영상 다운로드 (타임아웃 없음)
+                    response = requests.get(video_url)
                     if response.status_code != 200:
                         raise Exception(f"HTTP {response.status_code}")
         
@@ -435,7 +435,7 @@ async def analyze_complete_url(
         import requests
         print(f"📥 서버에서 영상 다운로드 시작...")
         
-        response = requests.get(video_url, timeout=60)  # 1분 타임아웃
+        response = requests.get(video_url)  # 타임아웃 없음
         if response.status_code != 200:
             raise HTTPException(400, f"영상 다운로드 실패: HTTP {response.status_code}")
 

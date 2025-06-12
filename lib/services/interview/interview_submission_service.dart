@@ -66,10 +66,8 @@ class InterviewSubmissionService {
 
       print('📡 서버로 포즈 분석 요청 전송 중...');
 
-      // 요청 전송 (3분 타임아웃)
-      final streamedResponse = await request.send().timeout(
-            const Duration(minutes: 3),
-          );
+      // 요청 전송 (타임아웃 없음)
+      final streamedResponse = await request.send();
 
       final response = await http.Response.fromStream(streamedResponse);
 
@@ -146,10 +144,8 @@ class InterviewSubmissionService {
 
       print('📡 서버로 평가 요청 전송 중...');
 
-      // 요청 전송 (5분 타임아웃)
-      final streamedResponse = await request.send().timeout(
-            const Duration(minutes: 5),
-          );
+      // 요청 전송 (타임아웃 없음)
+      final streamedResponse = await request.send();
 
       final response = await http.Response.fromStream(streamedResponse);
 
@@ -253,10 +249,8 @@ class InterviewSubmissionService {
 
       print('📡 서버로 URL 기반 분석 요청 전송 중...');
 
-      // 요청 전송 (5분 타임아웃)
-      final streamedResponse = await request.send().timeout(
-            const Duration(minutes: 5),
-          );
+      // 요청 전송 (타임아웃 없음)
+      final streamedResponse = await request.send();
 
       final response = await http.Response.fromStream(streamedResponse);
 
@@ -269,15 +263,19 @@ class InterviewSubmissionService {
         final responseText = _safeUtf8Decode(response.bodyBytes);
         final jsonResponse = json.decode(responseText);
 
-        final poseAnalysis = jsonResponse['poseAnalysis'] as String?;
+        final rawPoseAnalysis = jsonResponse['poseAnalysis'] as String?;
         final evaluationResult = jsonResponse['evaluationResult'] as String?;
 
-        print('📄 포즈 분석 결과 길이: ${poseAnalysis?.length ?? 0}자');
+        print('📄 포즈 분석 원본 길이: ${rawPoseAnalysis?.length ?? 0}자');
         print('📄 평가 결과 길이: ${evaluationResult?.length ?? 0}자');
+
+        // 포즈 분석 결과 정리
+        final cleanedPoseAnalysis = _cleanPoseAnalysis(rawPoseAnalysis);
+        print('📄 포즈 분석 정리 후 길이: ${cleanedPoseAnalysis.length}자');
 
         return CompleteAnalysisResult(
           success: true,
-          poseAnalysis: poseAnalysis,
+          poseAnalysis: cleanedPoseAnalysis,
           evaluationResult: evaluationResult,
           message: '통합 분석이 성공적으로 완료되었습니다.',
         );
@@ -354,6 +352,97 @@ class InterviewSubmissionService {
     } catch (e) {
       print('⚠️ 서버 응답 정리 중 오류: $e');
       return '응답 처리 오류';
+    }
+  }
+
+  /// 포즈 분석 결과를 더 읽기 쉽게 정리
+  String _cleanPoseAnalysis(String? poseAnalysis) {
+    if (poseAnalysis == null || poseAnalysis.isEmpty) {
+      return '포즈 분석 데이터가 없습니다.';
+    }
+
+    try {
+      final lines = poseAnalysis.split('\n');
+      final cleanedLines = <String>[];
+      bool inSummarySection = false;
+
+      for (final line in lines) {
+        final trimmed = line.trim();
+
+        // 빈 줄 건너뛰기
+        if (trimmed.isEmpty) continue;
+
+        // 요약 섹션 시작 감지
+        if (trimmed.contains('--- 분석 결과 요약 ---')) {
+          inSummarySection = true;
+          cleanedLines.add('📊 포즈 분석 요약');
+          cleanedLines.add('');
+          continue;
+        }
+
+        // 요약 섹션에서 내용 정리
+        if (inSummarySection) {
+          if (trimmed.startsWith('[자세 문제점별')) {
+            cleanedLines.add('🚨 자세 문제점:');
+          } else if (trimmed.startsWith('- ') && trimmed.contains('회')) {
+            // "- 고개가 옆으로 기울어져 있습니다.: 77회 (5.13초)" 형태 정리
+            final problemText = trimmed.substring(2);
+            cleanedLines.add('  • $problemText');
+          } else if (trimmed.startsWith('[시선 분석]')) {
+            cleanedLines.add('');
+            cleanedLines.add('👁️ 시선 분석:');
+          } else if (trimmed.startsWith('- 시선:')) {
+            // "- 시선: 아래쪽: 74프레임 (100.0%)" 형태 정리
+            final gazeText = trimmed.substring(2);
+            cleanedLines.add('  • $gazeText');
+          } else if (trimmed.startsWith('[총 영상 길이]')) {
+            cleanedLines.add('');
+            cleanedLines.add('⏱️ $trimmed');
+          } else if (trimmed.contains('분석된 총 프레임:')) {
+            cleanedLines.add('  • $trimmed');
+          } else if (trimmed.startsWith('주요 시선 방향:')) {
+            cleanedLines.add('  • $trimmed');
+          } else if (trimmed.startsWith('- 총 프레임') ||
+              trimmed.startsWith('- 유효 분석') ||
+              trimmed.startsWith('- 분석 성공률') ||
+              trimmed.startsWith('- FPS:') ||
+              trimmed.startsWith('- 해상도:')) {
+            cleanedLines.add('  • $trimmed');
+          }
+        } else {
+          // 세부 분석 로그는 개수만 요약
+          if (trimmed.contains('sec:')) {
+            // 세부 로그가 있다는 것을 표시하지만 모든 내용을 저장하지는 않음
+            if (!cleanedLines.contains('📝 세부 분석 로그 기록됨 (프레임별 문제점 감지)')) {
+              cleanedLines.insert(0, '📝 세부 분석 로그 기록됨 (프레임별 문제점 감지)');
+              cleanedLines.insert(1, '');
+            }
+          }
+        }
+      }
+
+      // 분석 결과가 너무 빈약한 경우 안내 메시지 추가
+      if (cleanedLines.length < 5) {
+        cleanedLines.clear();
+        cleanedLines.addAll([
+          '⚠️ 포즈 분석 결과가 제한적입니다.',
+          '',
+          '가능한 원인:',
+          '• 얼굴이나 상체가 화면에 충분히 보이지 않음',
+          '• 조명이 어둡거나 영상 화질이 낮음',
+          '• 카메라 각도가 부적절함',
+          '',
+          '💡 개선 방법:',
+          '• 얼굴과 상체가 잘 보이도록 카메라 위치 조정',
+          '• 충분한 조명 확보',
+          '• 정면을 바라보고 면접 진행',
+        ]);
+      }
+
+      return cleanedLines.join('\n');
+    } catch (e) {
+      print('⚠️ 포즈 분석 정리 중 오류: $e');
+      return '포즈 분석 결과 처리 중 오류가 발생했습니다: $poseAnalysis';
     }
   }
 

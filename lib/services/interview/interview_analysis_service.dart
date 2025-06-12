@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -143,6 +144,7 @@ class InterviewAnalysisService {
           await _saveQuestionFeedback(
             questionIndex: questionIndex,
             question: question,
+            videoUrl: videoUrl,
             answer: extractedAnswer,
             poseAnalysis: analysisResult.poseAnalysis,
             evaluationResult: analysisResult.evaluationResult,
@@ -180,6 +182,7 @@ class InterviewAnalysisService {
         await _saveQuestionFeedback(
           questionIndex: questionIndex,
           question: question,
+          videoUrl: videoUrl,
           answer: extractedAnswer,
           poseAnalysis: analysisResult.poseAnalysis,
           evaluationResult: analysisResult.evaluationResult,
@@ -244,6 +247,7 @@ class InterviewAnalysisService {
   Future<void> _saveQuestionFeedback({
     required int questionIndex,
     required String question,
+    required String videoUrl,
     String? answer,
     String? poseAnalysis,
     String? evaluationResult,
@@ -266,7 +270,7 @@ class InterviewAnalysisService {
         userId: currentUser.uid,
         questionIndex: questionIndex,
         question: question,
-        videoUrl: '', // 영상 URL은 이미 저장되어 있음
+        videoUrl: videoUrl, // 영상 URL은 이미 저장되어 있음
         answer: answer,
         poseAnalysis: poseAnalysis,
         evaluationResult: evaluationResult,
@@ -288,19 +292,113 @@ class InterviewAnalysisService {
     }
 
     try {
-      // 간단한 답변 추출 로직
+      print(
+          '🔍 답변 추출 시도: ${evaluationResult.substring(0, min(300, evaluationResult.length))}...');
+
+      // 1. 먼저 서버 로그에서 STT 결과 직접 추출 시도
+      final sttPattern = RegExp(r'STT 완료:\s*(.+?)(?=\n|$)', multiLine: true);
+      final sttMatch = sttPattern.firstMatch(evaluationResult);
+      if (sttMatch != null) {
+        final sttResult = cleanUtf8String(sttMatch.group(1) ?? '');
+        if (sttResult.length > 5) {
+          print(
+              '✅ STT 로그에서 답변 추출 성공: ${sttResult.substring(0, min(50, sttResult.length))}...');
+          return sttResult;
+        }
+      }
+
       final lines = evaluationResult.split('\n');
+      bool foundAnswerSection = false;
+
+      // 2. "사용자 답변:" 또는 유사한 섹션 찾기
+      for (int i = 0; i < lines.length; i++) {
+        final line = lines[i].trim();
+
+        if (line.contains('사용자 답변:') ||
+            line.contains('답변:') ||
+            line.contains('사용자의 답변:') ||
+            line.contains('인터뷰 답변:') ||
+            line.contains('면접자 답변:')) {
+          foundAnswerSection = true;
+          continue;
+        }
+
+        // 답변 섹션을 찾았고, 비어있지 않은 다음 줄이 답변
+        if (foundAnswerSection && line.isNotEmpty) {
+          final cleanedAnswer = cleanUtf8String(line);
+          if (cleanedAnswer.length > 5 &&
+              !cleanedAnswer.startsWith('평가') &&
+              !cleanedAnswer.startsWith('점수') &&
+              !cleanedAnswer.startsWith('총점') &&
+              !cleanedAnswer.contains('relevance:') &&
+              !cleanedAnswer.startsWith('질문') &&
+              !cleanedAnswer.contains('rating') &&
+              !cleanedAnswer.contains('comment')) {
+            print(
+                '✅ 답변 섹션에서 추출 성공: ${cleanedAnswer.substring(0, min(50, cleanedAnswer.length))}...');
+            return cleanedAnswer;
+          }
+        }
+      }
+
+      // 3. 한국어 문장 패턴으로 답변 찾기 (안녕하세요로 시작하는 등)
+      for (final line in lines) {
+        final trimmed = cleanUtf8String(line.trim());
+        if (trimmed.length > 15 &&
+            (trimmed.startsWith('안녕하세요') ||
+                trimmed.startsWith('저는') ||
+                trimmed.startsWith('네,') ||
+                trimmed.startsWith('감사합니다') ||
+                trimmed.contains('지원') ||
+                trimmed.contains('개발') ||
+                trimmed.contains('회사')) &&
+            !trimmed.contains('평가') &&
+            !trimmed.contains('점수') &&
+            !trimmed.contains('relevance') &&
+            !trimmed.contains('rating') &&
+            !trimmed.contains('==')) {
+          print(
+              '✅ 한국어 패턴으로 답변 추출 성공: ${trimmed.substring(0, min(50, trimmed.length))}...');
+          return trimmed;
+        }
+      }
+
+      // 4. 대안: 가장 긴 의미있는 텍스트 줄을 답변으로 간주
+      String? longestLine;
+      int maxLength = 0;
+
       for (final line in lines) {
         final trimmed = cleanUtf8String(line.trim());
         if (trimmed.isNotEmpty &&
             !trimmed.startsWith('질문:') &&
             !trimmed.startsWith('점수:') &&
+            !trimmed.startsWith('총점:') &&
             !trimmed.startsWith('평가:') &&
             !trimmed.startsWith('피드백:') &&
-            trimmed.length > 10) {
-          return trimmed;
+            !trimmed.contains('relevance:') &&
+            !trimmed.contains('completeness:') &&
+            !trimmed.contains('correctness:') &&
+            !trimmed.contains('clarity:') &&
+            !trimmed.contains('professionalism:') &&
+            !trimmed.contains('rating') &&
+            !trimmed.contains('comment') &&
+            !trimmed.contains('==') &&
+            !trimmed.contains('LLM') &&
+            !trimmed.contains('JSON') &&
+            trimmed.length > maxLength) {
+          maxLength = trimmed.length;
+          longestLine = trimmed;
         }
       }
+
+      if (longestLine != null && longestLine.length > 10) {
+        print(
+            '✅ 가장 긴 줄로 답변 추출 성공: ${longestLine.substring(0, min(50, longestLine.length))}...');
+        return longestLine;
+      }
+
+      print('⚠️ 답변 추출 실패: 적절한 답변을 찾을 수 없음');
+      print('📋 평가 결과 전체 (디버깅용): $evaluationResult');
       return null;
     } catch (e) {
       print('❌ STT 결과 추출 중 오류: $e');
