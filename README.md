@@ -63,67 +63,68 @@ flutter run -d chrome
 ### **3. 백엔드 설정**
 
 ```bash
-# Python 가상환경 생성
+# 프로젝트 디렉토리로 이동
 cd lib/server
+
+# Python 가상환경 생성
 python -m venv venv
 
 # 가상환경 활성화 (Windows)
 venv\Scripts\activate
-# 가상환경 활성화 (Mac/Linux)
-source venv/bin/activate
 
-# 패키지 설치
+# 필요한 패키지 설치치
 pip install -r requirements.txt
 
-# 환경변수 설정 (.env 파일 생성)
-# OPENAI_API_KEY=your_openai_api_key
+# Gemma 3:4b 모델 다운로드
+ollama pull gemma3:4b
 
 # 서버 실행
-python unified_api.py
-```
+uvicorn unified_api:app --reload --host 0.0.0.0 --port 8000
 
 ## 📁 프로젝트 구조
 
 ```
+
 ai-interview-web/
 ├── 📱 lib/ (Flutter 앱)
-│   ├── views/              # 화면 UI
-│   │   ├── landing_view.dart
-│   │   ├── login_view.dart
-│   │   ├── home_view.dart
-│   │   ├── resume_view.dart
-│   │   ├── interview_view.dart
-│   │   └── report_list_view.dart
-│   ├── widgets/            # 재사용 컴포넌트
-│   │   ├── common/
-│   │   ├── dashboard/
-│   │   ├── interview/
-│   │   ├── login/
-│   │   ├── report/
-│   │   └── resume/
-│   ├── services/           # API 통신 서비스
-│   │   ├── auth/
-│   │   ├── interview/
-│   │   ├── report/
-│   │   └── resume/
-│   ├── controllers/        # 상태 관리
-│   ├── models/            # 데이터 모델
-│   ├── repositories/      # 데이터 레포지토리
-│   └── core/              # 공통 설정
+│ ├── views/ # 화면 UI
+│ │ ├── landing_view.dart
+│ │ ├── login_view.dart
+│ │ ├── home_view.dart
+│ │ ├── resume_view.dart
+│ │ ├── interview_view.dart
+│ │ └── report_list_view.dart
+│ ├── widgets/ # 재사용 컴포넌트
+│ │ ├── common/
+│ │ ├── dashboard/
+│ │ ├── interview/
+│ │ ├── login/
+│ │ ├── report/
+│ │ └── resume/
+│ ├── services/ # API 통신 서비스
+│ │ ├── auth/
+│ │ ├── interview/
+│ │ ├── report/
+│ │ └── resume/
+│ ├── controllers/ # 상태 관리
+│ ├── models/ # 데이터 모델
+│ ├── repositories/ # 데이터 레포지토리
+│ └── core/ # 공통 설정
 ├── 🐍 lib/server/ (Python 백엔드)
-│   ├── unified_api.py          # 메인 API 서버
-│   ├── pose_detection.py       # AI 포즈 분석
-│   ├── requirements.txt        # Python 패키지
-│   ├── uploads/               # 업로드 파일 저장
-│   └── logs/                  # 분석 로그
+│ ├── unified_api.py # 메인 API 서버
+│ ├── pose_detection.py # AI 포즈 분석
+│ ├── requirements.txt # Python 패키지
+│ ├── uploads/ # 업로드 파일 저장
+│ └── logs/ # 분석 로그
 ├── 🔥 Firebase 설정
-│   ├── firebase.json
-│   └── firebase_options.dart
+│ ├── firebase.json
+│ └── firebase_options.dart
 └── 📱 플랫폼별 설정
-    ├── android/
-    ├── ios/
-    ├── web/
-    └── windows/
+├── android/
+├── ios/
+├── web/
+└── windows/
+
 ```
 
 ## 🎯 화면별 기능
@@ -160,3 +161,4 @@ ai-interview-web/
 - ✅ 명확성 체크
 - ✅ 전문성 판단
 - ✅ 개선 방안 제시
+```
