@@ -90,44 +90,47 @@ uvicorn unified_api:app --reload --host 0.0.0.0 --port 8000
 ```
 ai-interview-web/
 ├── 📱 lib/ (Flutter 앱)
-│ ├── views/ # 화면 UI
-│ │ ├── landing_view.dart
-│ │ ├── login_view.dart
-│ │ ├── home_view.dart
-│ │ ├── resume_view.dart
-│ │ ├── interview_view.dart
-│ │ └── report_list_view.dart
-│ ├── widgets/ # 재사용 컴포넌트
-│ │ ├── common/
-│ │ ├── dashboard/
-│ │ ├── interview/
-│ │ ├── login/
-│ │ ├── report/
-│ │ └── resume/
-│ ├── services/ # API 통신 서비스
-│ │ ├── auth/
-│ │ ├── interview/
-│ │ ├── report/
-│ │ └── resume/
-│ ├── controllers/ # 상태 관리
-│ ├── models/ # 데이터 모델
-│ ├── repositories/ # 데이터 레포지토리
-│ └── core/ # 공통 설정
+│   ├── views/              # 화면 UI
+│   │   ├── landing_view.dart
+│   │   ├── login_view.dart
+│   │   ├── home_view.dart
+│   │   ├── resume_view.dart
+│   │   ├── interview_view.dart
+│   │   └── report_list_view.dart
+│   ├── widgets/            # 재사용 컴포넌트
+│   │   ├── common/
+│   │   ├── dashboard/
+│   │   ├── interview/
+│   │   ├── login/
+│   │   ├── report/
+│   │   └── resume/
+│   ├── services/           # API 통신 서비스
+│   │   ├── auth/
+│   │   ├── interview/
+│   │   ├── report/
+│   │   └── resume/
+│   ├── interviewApp/        # 모의 면접 관련 모듈 API
+│   │   ├── interview_app/
+│   │   ├── unified_api2.py/      # 통합 API
+│   │   └── pose_detection.py/    # 자세 분석 모듈
+│   ├── controllers/        # 상태 관리
+│   ├── models/            # 데이터 모델
+│   ├── repositories/      # 데이터 레포지토리
+│   └── core/              # 공통 설정
 ├── 🐍 lib/server/ (Python 백엔드)
-│ ├── unified_api.py # 메인 API 서버
-│ ├── pose_detection.py # AI 포즈 분석
-│ ├── requirements.txt # Python 패키지
-│ ├── uploads/ # 업로드 파일 저장
-│ └── logs/ # 분석 로그
+│   ├── unified_api.py          # 메인 API 서버
+│   ├── pose_detection.py       # AI 포즈 분석
+│   ├── requirements.txt        # Python 패키지
+│   ├── uploads/               # 업로드 파일 저장
+│   └── logs/                  # 분석 로그
 ├── 🔥 Firebase 설정
-│ ├── firebase.json
-│ └── firebase_options.dart
+│   ├── firebase.json
+│   └── firebase_options.dart
 └── 📱 플랫폼별 설정
-├── android/
-├── ios/
-├── web/
-└── windows/
-
+    ├── android/
+    ├── ios/
+    ├── web/
+    └── windows/
 ```
 
 ## 🎯 화면별 기능
