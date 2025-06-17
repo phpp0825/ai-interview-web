@@ -29,7 +29,10 @@
 - **Python FastAPI**: REST API 서버
 - **MediaPipe**: AI 포즈 분석
 - **OpenCV**: 영상 처리
-- **Gemma API**: Gemma 기반 질문 생성 및 평가
+- **Ollama API**: Gemma 기반 질문 생성 및 답변 피드백
+- **Gtts**: Text to Speech API
+- **Whisper**: Speech to Text API
+
 
 ## 🚀 설치 및 실행
 
