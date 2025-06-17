@@ -29,7 +29,7 @@
 - **Python FastAPI**: REST API 서버
 - **MediaPipe**: AI 포즈 분석
 - **OpenCV**: 영상 처리
-- **OpenAI API**: GPT 기반 답변 평가
+- **Gemma API**: Gemma 기반 질문 생성 및 평가
 
 ## 🚀 설치 및 실행
 
@@ -81,10 +81,10 @@ ollama pull gemma3:4b
 # 서버 실행
 uvicorn unified_api:app --reload --host 0.0.0.0 --port 8000
 
-## 📁 프로젝트 구조
+```
+### **📁 프로젝트 구조**
 
 ```
-
 ai-interview-web/
 ├── 📱 lib/ (Flutter 앱)
 │ ├── views/ # 화면 UI
